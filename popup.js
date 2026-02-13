@@ -118,6 +118,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Add hover events for font groups
         document.querySelectorAll('.font-group').forEach(group => {
             group.addEventListener('mouseenter', () => {
+                if (group.querySelector('.tag-chip.active')) return;
                 const font = decodeURIComponent(group.dataset.font);
                 const tags = Array.from(group.querySelectorAll('.tag-chip')).map(c => c.dataset.tag);
                 highlightElements(font, tags, true);
