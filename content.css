@@ -1,0 +1,28 @@
+/* Font Snatcher Content Styles */
+
+.wff-highlight {
+    position: fixed !important;
+    background-color: rgba(0, 122, 204, 0.12) !important;
+    border: 2px solid rgba(0, 122, 204, 0.6) !important;
+    pointer-events: none !important;
+    z-index: 999999 !important;
+    border-radius: 8px !important;
+    box-sizing: border-box !important;
+}
+
+.wff-hover-highlight {
+    position: fixed !important;
+    border: 2px solid #007acc !important;
+    background-color: rgba(0, 122, 204, 0.06) !important;
+    pointer-events: none !important;
+    z-index: 999998 !important;
+    border-radius: 8px !important;
+    box-sizing: border-box !important;
+}
+
+.wff-hover-tooltip {
+    position: fixed !important;
+    z-index: 1000000 !important;
+    pointer-events: none !important;
+    color: #3c3c3c !important;
+}

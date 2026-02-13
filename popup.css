@@ -1,0 +1,218 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: #fafafa;
+    color: #333;
+    line-height: 1.4;
+}
+
+.main-container {
+    width: 340px;
+    max-height: 520px;
+    overflow: hidden;
+    background: linear-gradient(180deg, #ffffff 0%, #f8f9fa 100%);
+}
+
+.header {
+    padding: 16px 18px;
+    background: #ffffff;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.title {
+    font-size: 17px;
+    font-weight: 600;
+    color: #1a1a1a;
+    letter-spacing: -0.3px;
+}
+
+.font-count {
+    font-size: 12px;
+    color: #888;
+    font-weight: 450;
+}
+
+.inspect-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border: none;
+    border-radius: 20px;
+    background: #f0f0f0;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    color: #555;
+    transition: all 0.2s ease;
+}
+
+.inspect-toggle:hover {
+    background: #e4e4e4;
+    transform: translateY(-1px);
+}
+
+.inspect-toggle.active {
+    background: linear-gradient(135deg, #007acc 0%, #0066b3 100%);
+    color: white;
+    box-shadow: 0 4px 12px rgba(0, 122, 204, 0.3);
+}
+
+.inspect-icon {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+}
+
+.inspect-label {
+    font-weight: 500;
+}
+
+.font-list {
+    padding: 12px;
+    max-height: 430px;
+    overflow-y: auto;
+}
+
+/* Font group styles */
+.font-group {
+    padding: 14px 16px;
+    border-radius: 14px;
+    margin-bottom: 10px;
+    background: #ffffff;
+    border: 1px solid rgba(0, 0, 0, 0.04);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.font-group:hover {
+    background: #ffffff;
+    border-color: rgba(0, 122, 204, 0.3);
+    box-shadow: 0 4px 16px rgba(0, 122, 204, 0.12);
+    transform: translateY(-2px);
+}
+
+.font-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.font-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: #1a1a1a;
+    letter-spacing: -0.2px;
+}
+
+.font-total {
+    font-size: 11px;
+    background: linear-gradient(135deg, #e8f4ff 0%, #d4ebff 100%);
+    color: #0066b3;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-weight: 600;
+}
+
+/* Tag chip styles */
+.tag-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.tag-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    background: #f5f5f5;
+    border: none;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #666;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.tag-chip:hover {
+    background: #e8f4ff;
+    color: #007acc;
+    transform: translateY(-1px);
+}
+
+.tag-chip.active {
+    background: linear-gradient(135deg, #007acc 0%, #0066b3 100%);
+    color: white;
+    box-shadow: 0 3px 10px rgba(0, 122, 204, 0.25);
+}
+
+.tag-chip.active .tag-count {
+    background: rgba(255, 255, 255, 0.25);
+    color: white;
+}
+
+.tag-count {
+    font-size: 10px;
+    font-weight: 600;
+    background: #e0e0e0;
+    color: #777;
+    padding: 2px 6px;
+    border-radius: 10px;
+    min-width: 18px;
+    text-align: center;
+}
+
+.loading {
+    text-align: center;
+    padding: 40px 20px;
+    color: #888;
+    font-size: 13px;
+}
+
+.no-fonts {
+    text-align: center;
+    padding: 40px 20px;
+    color: #888;
+    font-size: 13px;
+}
+
+.no-fonts small {
+    display: block;
+    margin-top: 8px;
+    font-size: 11px;
+    color: #aaa;
+}
+
+/* Scrollbar styling */
+.font-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.font-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.font-list::-webkit-scrollbar-thumb {
+    background: #d0d0d0;
+    border-radius: 10px;
+}
+
+.font-list::-webkit-scrollbar-thumb:hover {
+    background: #b0b0b0;
+}

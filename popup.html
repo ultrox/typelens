@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="popup.css">
+    <title>Font Snatcher</title>
+</head>
+<body>
+    <div class="main-container">
+        <header class="header">
+            <div class="header-row">
+                <h1 class="title">Font Snatcher</h1>
+                <button id="inspect-toggle" class="inspect-toggle" title="Toggle page inspection">
+                    <svg class="inspect-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                    <span class="inspect-label">Inspect</span>
+                </button>
+            </div>
+            <div class="font-count">
+                <span id="font-count-text">Scanning fonts...</span>
+            </div>
+        </header>
+
+        <div class="font-list" id="font-list">
+            <div class="loading">Loading fonts...</div>
+        </div>
+    </div>
+
+    <script src="popup.js"></script>
+</body>
+</html>

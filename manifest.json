@@ -1,0 +1,42 @@
+{
+   "action": {
+      "default_icon": {
+         "128": "images/icon_128.png",
+         "16": "images/icon_16.png",
+         "32": "images/icon_32.png",
+         "48": "images/icon_48.png"
+      },
+      "default_popup": "popup.html"
+   },
+   "author": "Cristian Porras",
+   "background": {
+      "service_worker": "background.js"
+   },
+   "content_scripts": [ {
+      "all_frames": true,
+      "css": [ "content.css" ],
+      "js": [ "content.js" ],
+      "matches": [ "*://*/*" ],
+      "run_at": "document_end"
+   } ],
+   "content_security_policy": {
+      "extension_pages": "script-src 'self'; object-src 'self'"
+   },
+   "description": "Identify and inspect fonts on any website.",
+   "icons": {
+      "128": "images/icon_128.png",
+      "16": "images/icon_16.png",
+      "32": "images/icon_32.png",
+      "48": "images/icon_48.png"
+   },
+   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAjhdNIO6utZy6XeD+DulqP5L0xRV0eAyQITI8xBiL2eX/H/eC8IirXVYrz3O1CZ2dGPzcGPtomMkf0lt/WViUa6c18H4LL86YjJYPshLFT+eqUgB+Nn5w73aFDfGxmybswiKyvE6Y+o6N9/pN3p4zobEQO3E1htmAXIepWLYY+ieYrHxjQ642iFEhn9xj2TsZBrVpAZukx1HOQqr1dPiYYIsahYDmNypep3oqnhteYXHYWvKpH7e8ipHa71WJJ4/mtSexrKCcw7Q4jM4L8gKJJt9o2fsu4wpaQGq9Z2BOid3SAOX2gmF1nByjilf/M1W9x24epsRlrTaV8qccOI3UKwIDAQAB",
+   "manifest_version": 3,
+   "name": "Font Snatcher",
+   "permissions": [ "activeTab", "scripting" ],
+   "update_url": "https://clients2.google.com/service/update2/crx",
+   "version": "2.0.1",
+   "web_accessible_resources": [ {
+      "matches": [ "*://*/*" ],
+      "resources": [ "content.css" ]
+   } ]
+}

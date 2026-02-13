@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="32" height="33" viewBox="0 0 32 33">
+  <defs>
+    <clipPath id="clip-textIcon">
+      <rect width="32" height="33"/>
+    </clipPath>
+  </defs>
+  <g id="textIcon" clip-path="url(#clip-textIcon)">
+    <g id="Group_22" data-name="Group 22" transform="translate(-2 2)">
+      <text id="T" transform="translate(4 27)" fill="#bbb" font-size="36" font-family="TimesNewRomanPS-BoldMT, Times New Roman" font-weight="700"><tspan x="0" y="0">T</tspan></text>
+      <text id="T-2" data-name="T" transform="translate(21 21)" fill="#bbb" font-size="12" font-family="TimesNewRomanPS-BoldMT, Times New Roman" font-weight="700"><tspan x="0" y="0">T</tspan></text>
+    </g>
+  </g>
+</svg>
