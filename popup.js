@@ -147,13 +147,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         const totalStyles = typoGroups.reduce((sum, g) => sum + g.styles.length, 0);
         fontCountText.textContent = `${totalStyles} style${totalStyles === 1 ? '' : 's'} across ${typoGroups.length} group${typoGroups.length === 1 ? '' : 's'}`;
 
+        const roundPx = v => {
+            const n = parseFloat(v);
+            return isNaN(n) ? v : n % 1 === 0 ? `${n}px` : `${+n.toFixed(2)}px`;
+        };
+
         fontList.innerHTML = typoGroups.map(group => `
             <div class="typo-group">
                 <div class="typo-classifier">${group.classifier}</div>
                 ${group.styles.map(style => `
                     <div class="typo-row" data-tag="${style.tag}" data-font="${encodeURIComponent(style.font)}" data-size="${style.size}" data-weight="${style.weight}" data-line-height="${style.lineHeight}">
                         <span class="typo-row-tag">${style.tag}</span>
-                        <span class="typo-metrics">${style.size} / ${style.weight} / ${style.lineHeight} / ${style.displayName}</span>
+                        <span class="typo-metrics">${roundPx(style.size)} / ${style.weight} / ${roundPx(style.lineHeight)} / ${style.displayName}</span>
                         <span class="typo-count">&times;${style.count}</span>
                     </div>
                 `).join('')}
