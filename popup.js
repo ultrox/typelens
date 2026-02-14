@@ -2,9 +2,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     const fontList = document.getElementById('font-list');
     const fontCountText = document.getElementById('font-count-text');
     const inspectToggle = document.getElementById('inspect-toggle');
+    const freezeToggle = document.getElementById('freeze-toggle');
 
     let currentTab = null;
     let isInspectorActive = false;
+    let isFrozen = false;
     let cachedTypographyGroups = null;
     let lineHeightMode = 'ratio';
     let typoSortMode = 'size';
@@ -24,6 +26,18 @@ document.addEventListener('DOMContentLoaded', async () => {
                 showNoAccessMessage();
                 return;
             }
+
+            // Check if page was frozen before popup opened
+            try {
+                const [result] = await chrome.scripting.executeScript({
+                    target: { tabId: tab.id },
+                    function: () => !!(window.wffFrozenElements || window.wffFreezeAbort)
+                });
+                if (result.result) {
+                    isFrozen = true;
+                    freezeToggle.classList.add('active');
+                }
+            } catch (e) { /* ignore */ }
 
             await loadFontData(tab.id);
         } catch (error) {
@@ -775,8 +789,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             await chrome.scripting.executeScript({
                 target: { tabId: currentTab.id },
                 function: () => {
-                    document.querySelectorAll('.wff-highlight, .wff-highlight-focus, .wff-jump-tooltip').forEach(el => el.remove());
+                    document.querySelectorAll('.wff-highlight-focus, .wff-jump-tooltip').forEach(el => el.remove());
                     document.querySelectorAll('.wff-anchored').forEach(el => {
+                        el.style.outline = '';
+                        el.style.outlineOffset = '';
+                        el.style.boxShadow = '';
+                        el.style.borderRadius = '';
                         el.style.anchorName = '';
                         el.classList.remove('wff-anchored', 'wff-focused');
                     });
@@ -833,6 +851,38 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         } catch (error) {
             console.error('Error toggling inspector:', error);
+        }
+    });
+
+    // Freeze toggle — unfreeze and re-scan, or show hint
+    freezeToggle.addEventListener('click', async () => {
+        try {
+            if (!currentTab) return;
+
+            // Check if page is currently frozen
+            const [result] = await chrome.scripting.executeScript({
+                target: { tabId: currentTab.id },
+                function: () => !!(window.wffFrozenElements || window.wffFreezeAbort)
+            });
+            isFrozen = result.result;
+
+            if (isFrozen) {
+                // Unfreeze and re-scan
+                await chrome.scripting.executeScript({
+                    target: { tabId: currentTab.id },
+                    function: unfreezeHoverState
+                });
+                isFrozen = false;
+                freezeToggle.classList.remove('active');
+                await loadFontData(currentTab.id);
+            } else {
+                // Can't freeze from popup (mouse already left page)
+                // Show hint to use keyboard shortcut
+                freezeToggle.classList.add('hint');
+                setTimeout(() => freezeToggle.classList.remove('hint'), 2000);
+            }
+        } catch (error) {
+            console.error('Error toggling freeze:', error);
         }
     });
 
@@ -1192,8 +1242,12 @@ function extractFontFaces() {
 
 // Content script function: Highlight elements matching a specific typography combination
 function highlightTypographyMatches(tag, fontFamily, size, weight, lineHeight, textTransform, letterSpacing) {
-    document.querySelectorAll('.wff-highlight, .wff-highlight-focus, .wff-jump-tooltip').forEach(el => el.remove());
+    document.querySelectorAll('.wff-highlight-focus, .wff-jump-tooltip').forEach(el => el.remove());
     document.querySelectorAll('.wff-anchored').forEach(el => {
+        el.style.outline = '';
+        el.style.outlineOffset = '';
+        el.style.boxShadow = '';
+        el.style.borderRadius = '';
         el.style.anchorName = '';
         el.classList.remove('wff-anchored', 'wff-focused');
     });
@@ -1223,27 +1277,11 @@ function highlightTypographyMatches(tag, fontFamily, size, weight, lineHeight, t
 
         if (!firstElement) firstElement = element;
 
-        const anchor = `--wff-a-${i++}`;
-        element.style.anchorName = anchor;
         element.classList.add('wff-anchored');
-
-        const highlightEl = document.createElement('div');
-        highlightEl.className = 'wff-highlight';
-        highlightEl.style.cssText = `
-            position: absolute;
-            position-anchor: ${anchor};
-            top: anchor(top);
-            left: anchor(left);
-            width: anchor-size(width);
-            height: anchor-size(height);
-            background-color: rgba(0, 122, 204, 0.15);
-            border: 2px solid rgba(0, 122, 204, 0.7);
-            pointer-events: none;
-            z-index: 999999;
-            border-radius: 6px;
-            box-sizing: border-box;
-        `;
-        document.body.appendChild(highlightEl);
+        element.style.outline = '2px solid rgba(0, 122, 204, 0.7)';
+        element.style.outlineOffset = '-2px';
+        element.style.boxShadow = 'inset 0 0 0 1000px rgba(0, 122, 204, 0.12)';
+        element.style.borderRadius = '6px';
     });
 
     if (firstElement) {
@@ -1454,4 +1492,23 @@ function getGroupStyles(descriptors) {
             color: cs.color
         };
     }).filter(Boolean);
+}
+
+// Content script function: Unfreeze hover state, restore original inline styles
+function unfreezeHoverState() {
+    if (window.wffFreezeAbort) {
+        window.wffFreezeAbort.abort();
+        window.wffFreezeAbort = null;
+    }
+    if (window.wffFrozenElements) {
+        window.wffFrozenElements.forEach(({ el, original, classes }) => {
+            if (classes !== undefined) el.className = classes;
+            else el.classList.remove('wff-frozen');
+            if (original) el.setAttribute('style', original);
+            else el.removeAttribute('style');
+        });
+        window.wffFrozenElements = null;
+    }
+    const freezeStyle = document.getElementById('wff-freeze-style');
+    if (freezeStyle) freezeStyle.remove();
 }

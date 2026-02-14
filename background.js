@@ -36,13 +36,17 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 // Full cleanup function to be injected
 function cleanupAll() {
     // Remove highlights, tooltips, toasts
-    document.querySelectorAll('.wff-highlight, .wff-hover-highlight, .wff-hover-tooltip, .wff-copy-toast')
+    document.querySelectorAll('.wff-highlight-focus, .wff-hover-highlight, .wff-hover-tooltip, .wff-copy-toast, .wff-jump-tooltip')
         .forEach(el => el.remove());
 
-    // Remove anchor names
+    // Remove highlight styles and anchor names
     document.querySelectorAll('.wff-anchored').forEach(el => {
+        el.style.outline = '';
+        el.style.outlineOffset = '';
+        el.style.boxShadow = '';
+        el.style.borderRadius = '';
         el.style.anchorName = '';
-        el.classList.remove('wff-anchored');
+        el.classList.remove('wff-anchored', 'wff-focused');
     });
 
     // Disable inspector mode
@@ -52,4 +56,21 @@ function cleanupAll() {
         window.wffInspectorAbort.abort();
         window.wffInspectorAbort = null;
     }
+
+    // Unfreeze hover state
+    if (window.wffFreezeAbort) {
+        window.wffFreezeAbort.abort();
+        window.wffFreezeAbort = null;
+    }
+    if (window.wffFrozenElements) {
+        window.wffFrozenElements.forEach(({ el, original, classes }) => {
+            if (classes !== undefined) el.className = classes;
+            else el.classList.remove('wff-frozen');
+            if (original) el.setAttribute('style', original);
+            else el.removeAttribute('style');
+        });
+        window.wffFrozenElements = null;
+    }
+    const freezeStyle = document.getElementById('wff-freeze-style');
+    if (freezeStyle) freezeStyle.remove();
 }

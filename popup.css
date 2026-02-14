@@ -70,6 +70,15 @@ body {
     box-shadow: 0 4px 12px rgba(0, 122, 204, 0.3);
 }
 
+.inspect-toggle.hint {
+    animation: hintPulse 0.3s ease 2;
+}
+
+@keyframes hintPulse {
+    0%, 100% { background: #f0f0f0; }
+    50% { background: #ffe0b2; }
+}
+
 .inspect-icon {
     width: 14px;
     height: 14px;
