@@ -5,6 +5,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     let currentTab = null;
     let isInspectorActive = false;
+    let activeTab = 'fonts';
+    let cachedFontGroups = null;
+    let cachedTypographyGroups = null;
 
     // Background detects popup close via port disconnect and runs cleanup
     chrome.runtime.connect({ name: 'popup' });
@@ -30,18 +33,44 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     async function loadFontData(tabId) {
         try {
-            const results = await chrome.scripting.executeScript({
-                target: { tabId: tabId },
-                function: detectFontsByElement
-            });
+            const [fontResults, typoResults] = await Promise.all([
+                chrome.scripting.executeScript({
+                    target: { tabId },
+                    function: detectFontsByElement
+                }),
+                chrome.scripting.executeScript({
+                    target: { tabId },
+                    function: detectTypography
+                })
+            ]);
 
-            const data = results[0].result;
-            displayFonts(data);
+            cachedFontGroups = fontResults[0].result;
+            cachedTypographyGroups = typoResults[0].result;
+            renderActiveTab();
         } catch (error) {
             console.error('Error loading font data:', error);
             showErrorMessage();
         }
     }
+
+    function renderActiveTab() {
+        if (activeTab === 'fonts') {
+            displayFonts(cachedFontGroups);
+        } else {
+            displayTypography(cachedTypographyGroups);
+        }
+    }
+
+    // Tab switching
+    document.querySelectorAll('.tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (tab.dataset.tab === activeTab) return;
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            activeTab = tab.dataset.tab;
+            renderActiveTab();
+        });
+    });
 
     function displayFonts(fontGroups) {
         if (!fontGroups || fontGroups.length === 0) {
@@ -106,6 +135,74 @@ document.addEventListener('DOMContentLoaded', async () => {
                 highlightElements(font, tags, false);
             });
         });
+    }
+
+    function displayTypography(typoGroups) {
+        if (!typoGroups || typoGroups.length === 0) {
+            fontList.innerHTML = '<div class="no-fonts">No typography detected on this page</div>';
+            fontCountText.textContent = '0 element types found';
+            return;
+        }
+
+        fontCountText.textContent = `${typoGroups.length} element type${typoGroups.length === 1 ? '' : 's'} found`;
+
+        fontList.innerHTML = typoGroups.map(group => `
+            <div class="typo-group">
+                <div class="typo-tag">&lt;${group.tag}&gt;</div>
+                ${group.styles.map(style => `
+                    <div class="typo-row" data-tag="${group.tag}" data-font="${encodeURIComponent(style.font)}" data-size="${style.size}" data-weight="${style.weight}" data-line-height="${style.lineHeight}">
+                        <span class="typo-metrics">${style.size} / ${style.weight} / ${style.lineHeight} / ${style.displayName}</span>
+                        <span class="typo-count">&times;${style.count}</span>
+                    </div>
+                `).join('')}
+            </div>
+        `).join('');
+
+        // Click to highlight matching elements
+        document.querySelectorAll('.typo-row').forEach(row => {
+            row.addEventListener('click', async () => {
+                const wasActive = row.classList.contains('active');
+                document.querySelectorAll('.typo-row').forEach(r => r.classList.remove('active'));
+
+                if (!wasActive) {
+                    row.classList.add('active');
+                    const tag = row.dataset.tag;
+                    const font = decodeURIComponent(row.dataset.font);
+                    const size = row.dataset.size;
+                    const weight = row.dataset.weight;
+                    const lineHeight = row.dataset.lineHeight;
+                    await highlightTypographyElements(tag, font, size, weight, lineHeight);
+                } else {
+                    await clearHighlights();
+                }
+            });
+        });
+    }
+
+    async function highlightTypographyElements(tag, fontFamily, size, weight, lineHeight) {
+        try {
+            if (!currentTab) return;
+            await chrome.scripting.executeScript({
+                target: { tabId: currentTab.id },
+                function: highlightTypographyMatches,
+                args: [tag, fontFamily, size, weight, lineHeight]
+            });
+        } catch (error) {
+            console.error('Error highlighting typography:', error);
+        }
+    }
+
+    async function clearHighlights() {
+        try {
+            if (!currentTab) return;
+            await chrome.scripting.executeScript({
+                target: { tabId: currentTab.id },
+                function: toggleHighlight,
+                args: ['', [], false]
+            });
+        } catch (error) {
+            console.error('Error clearing highlights:', error);
+        }
     }
 
     async function highlightElements(fontFamily, tags, highlight) {
@@ -543,4 +640,133 @@ function disableInspectorMode() {
     }
 
     document.querySelectorAll('.wff-hover-highlight, .wff-hover-tooltip, .wff-copy-toast').forEach(el => el.remove());
+}
+
+// Content script function: Detect typography grouped by semantic tag with metric breakdowns
+function detectTypography() {
+    const TAG_ORDER = { 'h1': 1, 'h2': 2, 'h3': 3, 'h4': 4, 'h5': 5, 'h6': 6, 'p': 7, 'li': 8, 'td': 9, 'th': 10, 'label': 11, 'button': 12, 'a': 13, 'span': 14, 'div': 15 };
+    const SEMANTIC = new Set(['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'li', 'td', 'th', 'label', 'button']);
+    const RELEVANT = new Set([...SEMANTIC, 'span', 'div', 'a']);
+    const counted = new Set();
+    const typoMap = new Map(); // tag -> Map<key, {font, displayName, size, weight, lineHeight, count}>
+
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+        acceptNode: n => n.textContent.trim().length > 0 ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT
+    });
+
+    while (walker.nextNode()) {
+        const parent = walker.currentNode.parentElement;
+        if (!parent) continue;
+
+        const computedStyle = window.getComputedStyle(parent);
+        const fontFamily = computedStyle.fontFamily;
+        if (!fontFamily) continue;
+
+        const rect = parent.getBoundingClientRect();
+        if (rect.width <= 0 || rect.height <= 0) continue;
+        if (computedStyle.display === 'none') continue;
+        if (computedStyle.visibility === 'hidden') continue;
+        if (computedStyle.opacity === '0') continue;
+
+        // Walk up to find semantic ancestor
+        let target = null;
+        let el = parent;
+        while (el && el !== document.documentElement) {
+            const tag = el.tagName.toLowerCase();
+            if (RELEVANT.has(tag)) {
+                const elFont = (el === parent) ? fontFamily : window.getComputedStyle(el).fontFamily;
+                if (elFont === fontFamily) {
+                    target = el;
+                    if (SEMANTIC.has(tag)) break;
+                } else {
+                    break;
+                }
+            }
+            el = el.parentElement;
+        }
+
+        if (!target || counted.has(target)) continue;
+        counted.add(target);
+
+        const tag = target.tagName.toLowerCase();
+        const targetStyle = window.getComputedStyle(target);
+        const size = targetStyle.fontSize;
+        const weight = targetStyle.fontWeight;
+        const lineHeight = targetStyle.lineHeight;
+        const displayName = fontFamily.split(',')[0].replace(/['"]/g, '').trim();
+
+        const key = `${tag}|${fontFamily}|${size}|${weight}|${lineHeight}`;
+
+        if (!typoMap.has(tag)) {
+            typoMap.set(tag, new Map());
+        }
+        const tagMap = typoMap.get(tag);
+        if (!tagMap.has(key)) {
+            tagMap.set(key, { font: fontFamily, displayName, size, weight, lineHeight, count: 0 });
+        }
+        tagMap.get(key).count++;
+    }
+
+    // Convert to sorted array
+    const groups = Array.from(typoMap.entries()).map(([tag, styleMap]) => ({
+        tag,
+        styles: Array.from(styleMap.values()).sort((a, b) => b.count - a.count)
+    }));
+
+    groups.sort((a, b) => (TAG_ORDER[a.tag] || 999) - (TAG_ORDER[b.tag] || 999));
+
+    return groups;
+}
+
+// Content script function: Highlight elements matching a specific typography combination
+function highlightTypographyMatches(tag, fontFamily, size, weight, lineHeight) {
+    document.querySelectorAll('.wff-highlight').forEach(el => el.remove());
+    document.querySelectorAll('.wff-anchored').forEach(el => {
+        el.style.anchorName = '';
+        el.classList.remove('wff-anchored');
+    });
+
+    const elements = document.querySelectorAll(tag);
+    let firstElement = null;
+    let i = 0;
+
+    elements.forEach(element => {
+        const cs = window.getComputedStyle(element);
+        if (cs.fontFamily !== fontFamily) return;
+        if (cs.fontSize !== size) return;
+        if (cs.fontWeight !== weight) return;
+        if (cs.lineHeight !== lineHeight) return;
+        if (!element.textContent.trim()) return;
+
+        const rect = element.getBoundingClientRect();
+        if (rect.width <= 0 || rect.height <= 0) return;
+
+        if (!firstElement) firstElement = element;
+
+        const anchor = `--wff-a-${i++}`;
+        element.style.anchorName = anchor;
+        element.classList.add('wff-anchored');
+
+        const highlightEl = document.createElement('div');
+        highlightEl.className = 'wff-highlight';
+        highlightEl.style.cssText = `
+            position: absolute;
+            position-anchor: ${anchor};
+            top: anchor(top);
+            left: anchor(left);
+            width: anchor-size(width);
+            height: anchor-size(height);
+            background-color: rgba(0, 122, 204, 0.15);
+            border: 2px solid rgba(0, 122, 204, 0.7);
+            pointer-events: none;
+            z-index: 999999;
+            border-radius: 6px;
+            box-sizing: border-box;
+        `;
+        document.body.appendChild(highlightEl);
+    });
+
+    if (firstElement) {
+        firstElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
 }
