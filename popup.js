@@ -187,12 +187,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (activePill && activePill !== pill) {
                 activePill.classList.remove('active');
                 pill.classList.add('active');
+                group.dataset.copyFormat = pill.dataset.format;
                 return;
             }
 
             if (wasActive) {
                 // Exit copy mode
                 group.classList.remove('copy-mode');
+                delete group.dataset.copyFormat;
                 pill.classList.remove('active');
                 group.querySelectorAll('.typo-row-check input').forEach(cb => { cb.checked = true; });
                 const copyBtn = group.querySelector('.typo-group-copy-btn');
@@ -200,6 +202,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             } else {
                 // Enter copy mode
                 group.classList.add('copy-mode');
+                group.dataset.copyFormat = pill.dataset.format;
                 pill.classList.add('active');
                 const count = group.querySelectorAll('.typo-row-check input:checked').length;
                 const btn = document.createElement('button');
@@ -333,6 +336,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 // Exit copy mode
                 group.classList.remove('copy-mode');
+                delete group.dataset.copyFormat;
                 group.querySelectorAll('.typo-group-copy-pill.active').forEach(p => p.classList.remove('active'));
                 group.querySelectorAll('.typo-row-check input').forEach(cb => { cb.checked = true; });
                 btn.remove();

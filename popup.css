@@ -210,9 +210,38 @@ body {
 .typo-row-check input {
     width: 11px;
     height: 11px;
-    accent-color: #007acc;
     cursor: pointer;
     margin: 0;
+    -webkit-appearance: none;
+    appearance: none;
+    border-radius: 2px;
+    border: 1.5px solid #ccc;
+    background: #fff;
+    position: relative;
+}
+
+.typo-row-check input:checked::after {
+    content: '';
+    position: absolute;
+    left: 2px;
+    top: 0px;
+    width: 3px;
+    height: 6px;
+    border-right: 1.5px solid currentColor;
+    border-bottom: 1.5px solid currentColor;
+    transform: rotate(45deg);
+}
+
+.typo-group[data-copy-format="css"] .typo-row-check input:checked {
+    background: #e8f4ff;
+    border-color: #b3d9f7;
+    color: #0066b3;
+}
+
+.typo-group[data-copy-format="tokens"] .typo-row-check input:checked {
+    background: #f0e8ff;
+    border-color: #d4bffa;
+    color: #6b3fa0;
 }
 
 .typo-group.copy-mode .typo-row-check {
