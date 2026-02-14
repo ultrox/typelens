@@ -136,41 +136,38 @@ body {
 }
 
 .style-metrics {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-bottom: 8px;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 2px 10px;
+    margin-bottom: 10px;
+    padding: 8px 10px;
+    background: #1e1e1e;
+    border-radius: 8px;
+    font-size: 11px;
+    font-family: 'SF Mono', SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
 }
 
 .metric {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 11px;
-    background: #f5f5f5;
-    padding: 4px 8px;
-    border-radius: 6px;
+    display: contents;
 }
 
 .metric-label {
     color: #888;
-    font-weight: 500;
 }
 
 .metric-value {
-    color: #333;
-    font-weight: 600;
+    color: #e0e0e0;
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 5px;
 }
 
 .color-swatch {
     display: inline-block;
-    width: 10px;
-    height: 10px;
-    border-radius: 3px;
-    border: 1px solid rgba(0, 0, 0, 0.1);
+    width: 9px;
+    height: 9px;
+    border-radius: 2px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
     flex-shrink: 0;
 }
 
