@@ -3,6 +3,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const fontCountText = document.getElementById('font-count-text');
     const inspectToggle = document.getElementById('inspect-toggle');
     const freezeToggle = document.getElementById('freeze-toggle');
+    const searchInput = document.getElementById('search-input');
 
     let currentTab = null;
     let isInspectorActive = false;
@@ -250,8 +251,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const escapedSample = (style.sample || 'The quick brown fox').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
                     const metricsStr = `${roundPx(style.size)} / ${style.weight} / ${fmtLineHeight(style.lineHeight, style.size)} / ${style.displayName}`;
                     const dataAttrs = `data-tag="${style.tag}" data-font="${encodeURIComponent(style.font)}" data-size="${style.size}" data-weight="${style.weight}" data-line-height="${style.lineHeight}" data-text-transform="${style.textTransform}" data-letter-spacing="${style.letterSpacing}"`;
+                    const samplesAttr = (style.samples || []).join('|||').replace(/"/g, '&quot;').toLowerCase();
                     return `
-                    <div class="typo-row-group">
+                    <div class="typo-row-group" data-samples="${samplesAttr}">
                     <div class="typo-row" ${dataAttrs}>
                         <label class="typo-row-check"><input type="checkbox" checked></label>
                         <span class="typo-row-tag">${style.tag}</span>
@@ -280,6 +282,22 @@ document.addEventListener('DOMContentLoaded', async () => {
             btn.className = 'typo-all-copy-btn';
             btn.textContent = `COPY (${count})`;
             fontList.appendChild(btn);
+        }
+
+        // Populate datalist with all text samples
+        const datalist = document.getElementById('search-suggestions');
+        const seen = new Set();
+        let options = '';
+        typoGroups.forEach(g => g.styles.forEach(s => {
+            (s.samples || []).forEach(t => {
+                if (t && !seen.has(t)) { seen.add(t); options += `<option value="${t.replace(/"/g, '&quot;')}">`; }
+            });
+        }));
+        datalist.innerHTML = options;
+
+        // Re-apply search filter after re-render
+        if (searchInput.value.trim()) {
+            searchInput.dispatchEvent(new Event('input'));
         }
 
         const listen = (evt, fn) => fontList.addEventListener(evt, fn, { signal });
@@ -643,11 +661,26 @@ document.addEventListener('DOMContentLoaded', async () => {
                             function: getTypographySamples,
                             args: [tag, font, size, weight, lineHeight, textTransform, letterSpacing]
                         });
-                        const samples = results[0].result || [];
+                        let samples = results[0].result || [];
 
-                        // Update base preview jump button index
+                        // Filter by search query if active
+                        const searchQuery = searchInput.value.trim().toLowerCase();
+                        if (searchQuery) {
+                            samples = samples.filter(s => s.text.toLowerCase().includes(searchQuery));
+                        }
+
+                        // Update base preview jump button index and text
                         const baseBtn = preview.querySelector('.typo-jump-btn');
-                        if (baseBtn) baseBtn.dataset.elementIndex = samples.length > 0 ? samples[0].index : 0;
+                        if (baseBtn && samples.length > 0) {
+                            baseBtn.dataset.elementIndex = samples[0].index;
+                            const previewText = preview.querySelector('.typo-preview-text');
+                            if (previewText) previewText.textContent = samples[0].text;
+                        }
+
+                        // Update count badge to reflect filtered count
+                        if (searchQuery) {
+                            btn.innerHTML = `&times;${samples.length}<span class="typo-chevron">&#x203A;</span>`;
+                        }
 
                         let insertAfter = preview;
                         samples.slice(1).forEach(sample => {
@@ -865,6 +898,72 @@ document.addEventListener('DOMContentLoaded', async () => {
             console.error('Error clearing focus highlight:', error);
         }
     }
+
+    // Text search filter
+    searchInput.addEventListener('input', () => {
+        const query = searchInput.value.trim().toLowerCase();
+        const rowGroups = fontList.querySelectorAll('.typo-row-group');
+        const groups = fontList.querySelectorAll('.typo-group');
+
+        // Remove previous match lines
+        fontList.querySelectorAll('.typo-search-match').forEach(el => el.remove());
+
+        rowGroups.forEach(rg => {
+            const countBtn = rg.querySelector('.typo-count');
+            if (!query) {
+                rg.style.display = '';
+                // Restore original count
+                if (countBtn && countBtn.dataset.originalCount) {
+                    countBtn.innerHTML = `&times;${countBtn.dataset.originalCount}<span class="typo-chevron">&#x203A;</span>`;
+                    delete countBtn.dataset.originalCount;
+                }
+                return;
+            }
+            const allSamples = (rg.dataset.samples || '').split('|||');
+            const matches = allSamples.filter(s => s.includes(query));
+            rg.style.display = matches.length ? '' : 'none';
+
+            // Update count badge to show filtered count
+            if (matches.length && countBtn) {
+                if (!countBtn.dataset.originalCount) {
+                    countBtn.dataset.originalCount = allSamples.length;
+                }
+                countBtn.innerHTML = `&times;${matches.length}<span class="typo-chevron">&#x203A;</span>`;
+            }
+
+            // Show matching text snippets below the row (grouped with count)
+            if (matches.length) {
+                const counts = new Map();
+                matches.forEach(m => counts.set(m, (counts.get(m) || 0) + 1));
+                const matchList = document.createElement('div');
+                matchList.className = 'typo-search-match';
+                counts.forEach((count, text) => {
+                    const line = document.createElement('span');
+                    line.className = 'typo-search-match-text';
+                    line.textContent = count > 1 ? `${text} ×${count}` : text;
+                    matchList.appendChild(line);
+                });
+                rg.appendChild(matchList);
+            }
+        });
+
+        // Hide classifier groups where all rows are hidden
+        groups.forEach(group => {
+            const visible = group.querySelectorAll('.typo-row-group:not([style*="display: none"])');
+            group.style.display = visible.length ? '' : 'none';
+        });
+
+        // Update count
+        if (query) {
+            const totalMatches = fontList.querySelectorAll('.typo-search-match-text').length;
+            const visibleRows = fontList.querySelectorAll('.typo-row-group:not([style*="display: none"])');
+            fontCountText.textContent = `${totalMatches} match${totalMatches === 1 ? '' : 'es'} in ${visibleRows.length} style${visibleRows.length === 1 ? '' : 's'}`;
+        } else {
+            const totalStyles = fontList.querySelectorAll('.typo-row-group').length;
+            const typoGroups = fontList.querySelectorAll('.typo-group');
+            fontCountText.textContent = `${totalStyles} style${totalStyles === 1 ? '' : 's'} across ${typoGroups.length} group${typoGroups.length === 1 ? '' : 's'}`;
+        }
+    });
 
     // Inspector toggle
     inspectToggle.addEventListener('click', async () => {
@@ -1200,7 +1299,11 @@ function detectTypography() {
         const styleMap = classifierMap.get(classifier);
         if (!styleMap.has(key)) {
             const sample = walker.currentNode.textContent.trim().slice(0, 60);
-            styleMap.set(key, { tag, font: fontFamily, displayName, size, weight, lineHeight, fontStyle, textTransform, letterSpacing, count: 0, sample });
+            styleMap.set(key, { tag, font: fontFamily, displayName, size, weight, lineHeight, fontStyle, textTransform, letterSpacing, count: 0, sample, samples: [sample] });
+        } else {
+            const snippet = walker.currentNode.textContent.trim().slice(0, 60);
+            const entry = styleMap.get(key);
+            if (entry.samples.length < 200) entry.samples.push(snippet);
         }
         styleMap.get(key).count++;
     }
