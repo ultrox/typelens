@@ -46,16 +46,10 @@ function cleanupAll() {
     });
 
     // Disable inspector mode
-    if (window.wffInspectorActive) {
-        window.wffInspectorActive = false;
-        document.body.style.cursor = '';
-
-        if (window.wffInspectorHandlers) {
-            document.removeEventListener('mouseover', window.wffInspectorHandlers.mouseover, true);
-            document.removeEventListener('mouseout', window.wffInspectorHandlers.mouseout, true);
-            document.removeEventListener('click', window.wffInspectorHandlers.click, true);
-            document.removeEventListener('keydown', window.wffInspectorHandlers.keydown, true);
-            window.wffInspectorHandlers = null;
-        }
+    window.wffInspectorActive = false;
+    document.body.style.cursor = '';
+    if (window.wffInspectorAbort) {
+        window.wffInspectorAbort.abort();
+        window.wffInspectorAbort = null;
     }
 }

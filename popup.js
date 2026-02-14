@@ -440,9 +440,9 @@ function enableInspectorMode() {
     if (window.wffInspectorActive) return;
 
     window.wffInspectorActive = true;
+    window.wffInspectorAbort = new AbortController();
+    const signal = window.wffInspectorAbort.signal;
     document.body.style.cursor = 'crosshair';
-
-    // Define handlers inline to avoid reference errors
     function onHover(event) {
         const element = event.target;
 
@@ -582,26 +582,18 @@ function enableInspectorMode() {
         if (event.key === 'Escape') {
             window.wffInspectorActive = false;
             document.body.style.cursor = '';
-            document.removeEventListener('mouseover', window.wffInspectorHandlers.mouseover, true);
-            document.removeEventListener('mouseout', window.wffInspectorHandlers.mouseout, true);
-            document.removeEventListener('click', window.wffInspectorHandlers.click, true);
-            document.removeEventListener('keydown', window.wffInspectorHandlers.keydown, true);
+            if (window.wffInspectorAbort) {
+                window.wffInspectorAbort.abort();
+                window.wffInspectorAbort = null;
+            }
             document.querySelectorAll('.wff-hover-highlight, .wff-hover-tooltip, .wff-copy-toast').forEach(el => el.remove());
-            window.wffInspectorHandlers = null;
         }
     }
 
-    window.wffInspectorHandlers = {
-        mouseover: onHover,
-        mouseout: onOut,
-        click: onClick,
-        keydown: onKeyDown
-    };
-
-    document.addEventListener('mouseover', window.wffInspectorHandlers.mouseover, true);
-    document.addEventListener('mouseout', window.wffInspectorHandlers.mouseout, true);
-    document.addEventListener('click', window.wffInspectorHandlers.click, true);
-    document.addEventListener('keydown', window.wffInspectorHandlers.keydown, true);
+    document.addEventListener('mouseover', onHover, { capture: true, signal });
+    document.addEventListener('mouseout', onOut, { capture: true, signal });
+    document.addEventListener('click', onClick, { capture: true, signal });
+    document.addEventListener('keydown', onKeyDown, { capture: true, signal });
 }
 
 // Content script function: Disable inspector mode
@@ -611,12 +603,9 @@ function disableInspectorMode() {
     window.wffInspectorActive = false;
     document.body.style.cursor = '';
 
-    if (window.wffInspectorHandlers) {
-        document.removeEventListener('mouseover', window.wffInspectorHandlers.mouseover, true);
-        document.removeEventListener('mouseout', window.wffInspectorHandlers.mouseout, true);
-        document.removeEventListener('click', window.wffInspectorHandlers.click, true);
-        document.removeEventListener('keydown', window.wffInspectorHandlers.keydown, true);
-        window.wffInspectorHandlers = null;
+    if (window.wffInspectorAbort) {
+        window.wffInspectorAbort.abort();
+        window.wffInspectorAbort = null;
     }
 
     document.querySelectorAll('.wff-hover-highlight, .wff-hover-tooltip, .wff-copy-toast').forEach(el => el.remove());
