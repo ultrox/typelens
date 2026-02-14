@@ -69,14 +69,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             </div>
         `).join('');
 
-        // Add click events for tag chips to highlight + show copy bar
+        // Tag chip click: lock highlight + show copy bar
         document.querySelectorAll('.tag-chip').forEach(chip => {
             chip.addEventListener('click', async (e) => {
                 e.stopPropagation();
                 const tag = chip.dataset.tag;
                 const font = decodeURIComponent(chip.dataset.font);
 
-                // Toggle active state
                 const wasActive = chip.classList.contains('active');
                 document.querySelectorAll('.tag-chip').forEach(c => c.classList.remove('active'));
                 document.querySelectorAll('.copy-bar').forEach(el => el.remove());
@@ -85,7 +84,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                     chip.classList.add('active');
                     await highlightAndScrollTo(font, [tag]);
 
-                    // Fetch computed styles from the page
                     const styles = await fetchElementStyles(font, tag);
                     if (styles) {
                         const cssText = formatCssText(styles);
@@ -129,22 +127,25 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         });
 
-        // Add hover events for font groups
+        // Single mouseover/mouseleave on font groups handles both card and chip hover
         document.querySelectorAll('.font-group').forEach(group => {
-            group.addEventListener('mouseenter', () => {
-                if (group.querySelector('.tag-chip.active')) return;
+            group.addEventListener('mouseover', (e) => {
+                if (document.querySelector('.tag-chip.active')) return;
                 const font = decodeURIComponent(group.dataset.font);
-                const tags = Array.from(group.querySelectorAll('.tag-chip')).map(c => c.dataset.tag);
-                highlightElements(font, tags, true);
+                const chip = e.target.closest('.tag-chip');
+                if (chip) {
+                    highlightElements(font, [chip.dataset.tag], true);
+                } else if (!e.target.closest('.tag-list')) {
+                    const tags = Array.from(group.querySelectorAll('.tag-chip')).map(c => c.dataset.tag);
+                    highlightElements(font, tags, true);
+                }
             });
 
             group.addEventListener('mouseleave', () => {
-                // Only clear if no tag is actively clicked
-                if (!document.querySelector('.tag-chip.active')) {
-                    const font = decodeURIComponent(group.dataset.font);
-                    const tags = Array.from(group.querySelectorAll('.tag-chip')).map(c => c.dataset.tag);
-                    highlightElements(font, tags, false);
-                }
+                if (document.querySelector('.tag-chip.active')) return;
+                const font = decodeURIComponent(group.dataset.font);
+                const tags = Array.from(group.querySelectorAll('.tag-chip')).map(c => c.dataset.tag);
+                highlightElements(font, tags, false);
             });
         });
     }
