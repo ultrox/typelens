@@ -92,7 +92,18 @@ document.addEventListener('DOMContentLoaded', async () => {
                         const fontGroup = chip.closest('.font-group');
                         const copyBar = document.createElement('div');
                         copyBar.className = 'copy-bar';
+                        const letterSpacingMetric = styles.letterSpacing !== 'normal'
+                            ? `<div class="metric"><span class="metric-label">Spacing</span><span class="metric-value">${styles.letterSpacing}</span></div>` : '';
+
                         copyBar.innerHTML = `
+                            <div class="style-metrics">
+                                <div class="metric"><span class="metric-label">Size</span><span class="metric-value">${styles.fontSize}</span></div>
+                                <div class="metric"><span class="metric-label">Weight</span><span class="metric-value">${styles.fontWeight}</span></div>
+                                <div class="metric"><span class="metric-label">Line Height</span><span class="metric-value">${styles.lineHeight}</span></div>
+                                <div class="metric"><span class="metric-label">Color</span><span class="metric-value"><span class="color-swatch" style="background:${styles.color}"></span>${styles.color}</span></div>
+                                ${styles.fontStyle !== 'normal' ? `<div class="metric"><span class="metric-label">Style</span><span class="metric-value">${styles.fontStyle}</span></div>` : ''}
+                                ${letterSpacingMetric}
+                            </div>
                             <button class="copy-css-btn">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
                                 Copy CSS
