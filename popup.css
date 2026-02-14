@@ -155,6 +155,97 @@ body {
     margin-bottom: 8px;
 }
 
+.typo-classifier-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.typo-group-copy-pill {
+    padding: 2px 8px;
+    border: 1px solid transparent;
+    border-radius: 5px;
+    font-size: 8px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    font-family: 'SF Mono', SFMono-Regular, ui-monospace, Menlo, monospace;
+    cursor: pointer;
+    transition: all 0.12s ease;
+    background: #f0f0f0;
+    color: #777;
+}
+
+.typo-group-copy-pill[data-format="css"]:hover {
+    background: #e8f4ff;
+    border-color: #b3d9f7;
+    color: #0066b3;
+}
+
+.typo-group-copy-pill[data-format="tokens"]:hover {
+    background: #f0e8ff;
+    border-color: #d4bffa;
+    color: #6b3fa0;
+}
+
+.typo-group-copy-pill[data-format="css"].active {
+    background: #e8f4ff;
+    border-color: #007acc;
+    color: #0066b3;
+}
+
+.typo-group-copy-pill[data-format="tokens"].active {
+    background: #f0e8ff;
+    border-color: #8b5cf6;
+    color: #6b3fa0;
+}
+
+.typo-row-check {
+    display: none;
+    align-items: center;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.typo-row-check input {
+    width: 11px;
+    height: 11px;
+    accent-color: #007acc;
+    cursor: pointer;
+    margin: 0;
+}
+
+.typo-group.copy-mode .typo-row-check {
+    display: flex;
+}
+
+.typo-group-copy-btn {
+    width: 100%;
+    padding: 7px 0;
+    margin-top: 8px;
+    border: none;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #007acc 0%, #0066b3 100%);
+    color: white;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    position: relative;
+}
+
+.typo-group-copy-btn:hover {
+    box-shadow: 0 2px 8px rgba(0, 122, 204, 0.3);
+    transform: translateY(-1px);
+}
+
+.typo-group-copy-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
 .typo-preview-toggle {
     padding: 2px 8px;
     border: none;

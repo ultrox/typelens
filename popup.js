@@ -114,7 +114,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             <div class="typo-group">
                 <div class="typo-classifier">
                     <span>${group.classifier}</span>
-                    <button class="typo-preview-toggle">Preview</button>
+                    <div class="typo-classifier-actions">
+                        <button class="typo-group-copy-pill" data-format="css">CSS</button>
+                        <button class="typo-group-copy-pill" data-format="tokens">Tokens</button>
+                        <button class="typo-preview-toggle">Preview</button>
+                    </div>
                 </div>
                 ${group.styles.map(style => {
                     const previewFont = style.font.replace(/"/g, "'");
@@ -125,6 +129,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     return `
                     <div class="typo-row-group">
                     <div class="typo-row" ${dataAttrs}>
+                        <label class="typo-row-check"><input type="checkbox" checked></label>
                         <span class="typo-row-tag">${style.tag}</span>
                         <span class="typo-metrics">${metricsStr}</span>
                         <button class="typo-count" ${dataAttrs}>&times;${style.count}<span class="typo-chevron">&#x203A;</span></button>
@@ -168,9 +173,178 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         });
 
+        // Group copy pill click handler (event delegation)
+        fontList.addEventListener('click', (e) => {
+            const pill = e.target.closest('.typo-group-copy-pill');
+            if (!pill) return;
+            e.stopPropagation();
+
+            const group = pill.closest('.typo-group');
+            const wasActive = pill.classList.contains('active');
+
+            // If clicking a different format pill while already in copy mode, switch format
+            const activePill = group.querySelector('.typo-group-copy-pill.active');
+            if (activePill && activePill !== pill) {
+                activePill.classList.remove('active');
+                pill.classList.add('active');
+                return;
+            }
+
+            if (wasActive) {
+                // Exit copy mode
+                group.classList.remove('copy-mode');
+                pill.classList.remove('active');
+                group.querySelectorAll('.typo-row-check input').forEach(cb => { cb.checked = true; });
+                const copyBtn = group.querySelector('.typo-group-copy-btn');
+                if (copyBtn) copyBtn.remove();
+            } else {
+                // Enter copy mode
+                group.classList.add('copy-mode');
+                pill.classList.add('active');
+                const count = group.querySelectorAll('.typo-row-check input:checked').length;
+                const btn = document.createElement('button');
+                btn.className = 'typo-group-copy-btn';
+                btn.textContent = `Copy ${count} style${count === 1 ? '' : 's'}`;
+                group.appendChild(btn);
+            }
+        });
+
+        // Checkbox change handler — update copy button count
+        fontList.addEventListener('change', (e) => {
+            if (!e.target.closest('.typo-row-check')) return;
+            const group = e.target.closest('.typo-group');
+            if (!group || !group.classList.contains('copy-mode')) return;
+            const count = group.querySelectorAll('.typo-row-check input:checked').length;
+            const btn = group.querySelector('.typo-group-copy-btn');
+            if (btn) {
+                btn.textContent = `Copy ${count} style${count === 1 ? '' : 's'}`;
+                btn.disabled = count === 0;
+            }
+        });
+
+        // Group copy button click handler
+        fontList.addEventListener('click', async (e) => {
+            const btn = e.target.closest('.typo-group-copy-btn');
+            if (!btn) return;
+            e.stopPropagation();
+
+            const group = btn.closest('.typo-group');
+            const checkedRows = group.querySelectorAll('.typo-row-check input:checked');
+            const activePill = group.querySelector('.typo-group-copy-pill.active');
+            const format = activePill ? activePill.dataset.format : 'css';
+
+            // Collect style descriptors from checked rows
+            const descriptors = [];
+            checkedRows.forEach(cb => {
+                const row = cb.closest('.typo-row');
+                if (!row) return;
+                descriptors.push({
+                    tag: row.dataset.tag,
+                    font: decodeURIComponent(row.dataset.font),
+                    size: row.dataset.size,
+                    weight: row.dataset.weight,
+                    lineHeight: row.dataset.lineHeight,
+                    textTransform: row.dataset.textTransform,
+                    letterSpacing: row.dataset.letterSpacing
+                });
+            });
+
+            if (descriptors.length === 0) return;
+
+            try {
+                const results = await chrome.scripting.executeScript({
+                    target: { tabId: currentTab.id },
+                    function: getGroupStyles,
+                    args: [descriptors]
+                });
+                const allStyles = results[0].result || [];
+
+                let text;
+                if (format === 'css') {
+                    text = allStyles.map(s => {
+                        const lines = [`/* ${s.tag} */`];
+                        lines.push(`font-family: ${s.fontFamily};`);
+                        if (s.fontStyle !== 'normal') lines.push(`font-style: ${s.fontStyle};`);
+                        lines.push(`font-weight: ${s.fontWeight};`);
+                        lines.push(`font-size: ${s.fontSize};`);
+                        lines.push(`line-height: ${s.lineHeight};`);
+                        lines.push(`letter-spacing: ${s.letterSpacing};`);
+                        lines.push(`text-transform: ${s.textTransform};`);
+                        lines.push(`color: ${s.color};`);
+                        return lines.join('\n');
+                    }).join('\n\n');
+                } else {
+                    const camelCase = (s) => s.trim().split(/\s+/).map((w, i) => i === 0 ? w.toLowerCase() : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join('');
+                    const numKey = (v) => { const n = parseFloat(v); return isNaN(n) ? v : String(n % 1 === 0 ? Math.round(n) : +n.toFixed(2)); };
+                    const letterSpacingNames = {
+                        '0px': '0', 'normal': '0',
+                        '0.5px': 'half', '-0.5px': 'minus-half',
+                        '1px': '1', '-1px': 'minus-1',
+                        '1.5px': '1-half', '-1.5px': 'minus-1-half',
+                        '2px': '2', '-2px': 'minus-2'
+                    };
+
+                    // Merge all styles into deduplicated property groups
+                    const groups = {
+                        'font-family': {},
+                        'font-weight': {},
+                        'font-size': {},
+                        'line-height': {},
+                        'letter-spacing': {},
+                        'text-transform': {}
+                    };
+                    allStyles.forEach(s => {
+                        const cleanFont = s.fontFamily.split(',')[0].replace(/['"]/g, '').trim();
+                        const lsKey = letterSpacingNames[s.letterSpacing] || numKey(s.letterSpacing);
+
+                        groups['font-family'][camelCase(cleanFont)] = { type: 'string', value: cleanFont };
+                        groups['font-weight'][String(s.fontWeight)] = { type: 'dimension', value: s.fontWeight };
+                        groups['font-size'][numKey(s.fontSize)] = { type: 'dimension', value: s.fontSize };
+                        groups['line-height'][numKey(s.lineHeight)] = { type: 'dimension', value: s.lineHeight };
+                        groups['letter-spacing'][lsKey] = { type: 'dimension', value: s.letterSpacing };
+                        groups['text-transform'][s.textTransform] = { type: 'string', value: s.textTransform };
+                    });
+
+                    const j = (v) => JSON.stringify(v);
+                    const lines = ['{'];
+                    const groupKeys = Object.keys(groups);
+                    groupKeys.forEach((gk, gi) => {
+                        lines.push(`  ${j(gk)}: {`);
+                        const entries = Object.entries(groups[gk]);
+                        entries.forEach(([k, v], i) => {
+                            const comma = i < entries.length - 1 ? ',' : '';
+                            lines.push(`    ${j(k)}: { "type": ${j(v.type)}, "value": ${j(v.value)} }${comma}`);
+                        });
+                        lines.push(gi < groupKeys.length - 1 ? '  },' : '  }');
+                    });
+                    lines.push('}');
+                    text = lines.join('\n');
+                }
+
+                await navigator.clipboard.writeText(text);
+
+                // Ghost animation on the button
+                const ghost = document.createElement('span');
+                ghost.className = 'typo-copy-ghost';
+                ghost.textContent = 'Copied!';
+                btn.style.position = 'relative';
+                btn.appendChild(ghost);
+                ghost.addEventListener('animationend', () => ghost.remove());
+
+                // Exit copy mode
+                group.classList.remove('copy-mode');
+                group.querySelectorAll('.typo-group-copy-pill.active').forEach(p => p.classList.remove('active'));
+                group.querySelectorAll('.typo-row-check input').forEach(cb => { cb.checked = true; });
+                btn.remove();
+            } catch (error) {
+                console.error('Error copying group styles:', error);
+            }
+        });
+
         // Click row to highlight matching elements on page
         document.querySelectorAll('.typo-row').forEach(row => {
-            row.addEventListener('click', async () => {
+            row.addEventListener('click', async (e) => {
+                if (e.target.closest('.typo-row-check')) return;
                 const wasActive = row.classList.contains('active');
                 document.querySelectorAll('.typo-row').forEach(r => r.classList.remove('active'));
                 document.querySelectorAll('.typo-row-sticky').forEach(r => r.classList.remove('typo-row-sticky'));
@@ -1058,4 +1232,46 @@ function getElementStyles(tag, fontFamily, size, weight, lineHeight, textTransfo
         textTransform: cs.textTransform,
         color: cs.color
     };
+}
+
+// Content script function: Batch fetch computed styles for multiple style descriptors
+function getGroupStyles(descriptors) {
+    return descriptors.map(d => {
+        const elements = document.querySelectorAll(d.tag);
+        let target = null;
+
+        for (const element of elements) {
+            if (!element.textContent.trim()) continue;
+            const rect = element.getBoundingClientRect();
+            if (rect.width <= 0 || rect.height <= 0) continue;
+
+            const tw = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, {
+                acceptNode: n => n.textContent.trim().length > 0 ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT
+            });
+            let matched = false;
+            while (tw.nextNode()) {
+                const cs = window.getComputedStyle(tw.currentNode.parentElement);
+                if (cs.fontFamily === d.font && cs.fontSize === d.size && cs.fontWeight === d.weight && cs.lineHeight === d.lineHeight && cs.textTransform === d.textTransform && cs.letterSpacing === d.letterSpacing) {
+                    matched = true;
+                    break;
+                }
+            }
+            if (matched) { target = element; break; }
+        }
+
+        if (!target) return null;
+
+        const cs = window.getComputedStyle(target);
+        return {
+            tag: d.tag,
+            fontFamily: cs.fontFamily,
+            fontWeight: cs.fontWeight,
+            fontSize: cs.fontSize,
+            fontStyle: cs.fontStyle,
+            lineHeight: cs.lineHeight,
+            letterSpacing: cs.letterSpacing,
+            textTransform: cs.textTransform,
+            color: cs.color
+        };
+    }).filter(Boolean);
 }
