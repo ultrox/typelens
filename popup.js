@@ -332,7 +332,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const copyIcon = '<svg width="10" height="10" viewBox="0 0 16 16" fill="none" style="margin-right:3px;vertical-align:-1px"><rect x="5" y="1" width="10" height="12" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M3 4H2.5A1.5 1.5 0 001 5.5v9A1.5 1.5 0 002.5 16h7a1.5 1.5 0 001.5-1.5V14" stroke="currentColor" stroke-width="1.5"/></svg>';
                     actions.innerHTML = `<button class="typo-copy-pill" data-format="css">${copyIcon}CSS</button><button class="typo-copy-pill" data-format="tokens">${copyIcon}Tokens</button>`;
                     actions._styles = styles;
-                    previewLine.after(actions);
+                    previewLine.appendChild(actions);
                 }
             } catch (error) {
                 console.error('Error fetching styles:', error);
