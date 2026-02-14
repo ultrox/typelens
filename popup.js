@@ -129,7 +129,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         <span class="typo-metrics">${metricsStr}</span>
                         <button class="typo-count" ${dataAttrs}>&times;${style.count}<span class="typo-chevron">&#x203A;</span></button>
                     </div>
-                    <div class="typo-preview" style="font-family: ${previewFont}; font-size: ${previewSize}px; font-weight: ${style.weight}; line-height: ${style.lineHeight}; font-style: ${style.fontStyle}; text-transform: ${style.textTransform}; letter-spacing: ${style.letterSpacing}">${escapedSample}</div>
+                    <div class="typo-preview typo-preview-row" style="font-family: ${previewFont}; font-size: ${previewSize}px; font-weight: ${style.weight}; line-height: ${style.lineHeight}; font-style: ${style.fontStyle}; text-transform: ${style.textTransform}; letter-spacing: ${style.letterSpacing}"><button class="typo-jump-btn" ${dataAttrs} data-element-index="0"><svg width="12" height="12" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="8" r="2" fill="currentColor"/></svg></button><span class="typo-preview-text">${escapedSample}</span></div>
                     </div>`;
                 }).join('')}
             </div>
@@ -164,13 +164,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                     group.querySelectorAll('.typo-row-sticky').forEach(r => r.classList.remove('typo-row-sticky'));
                     group.querySelectorAll('.typo-preview-active').forEach(el => el.classList.remove('typo-preview-active'));
                     group.querySelectorAll('.typo-copy-actions').forEach(el => el.remove());
-                    group.querySelectorAll('.typo-preview-row').forEach(p => {
-                        const textSpan = p.querySelector('.typo-preview-text');
-                        const text = textSpan ? textSpan.textContent : p.textContent;
-                        p.classList.remove('typo-preview-row');
-                        p.innerHTML = '';
-                        p.textContent = text;
-                    });
                 }
             });
         });
@@ -218,13 +211,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 group.querySelectorAll('.typo-count.expanded').forEach(b => b.classList.remove('expanded'));
                 group.querySelectorAll('.typo-preview-active').forEach(el => el.classList.remove('typo-preview-active'));
                 group.querySelectorAll('.typo-copy-actions').forEach(el => el.remove());
-                group.querySelectorAll('.typo-preview-row').forEach(p => {
-                    const textSpan = p.querySelector('.typo-preview-text');
-                    const text = textSpan ? textSpan.textContent : p.textContent;
-                    p.classList.remove('typo-preview-row');
-                    p.innerHTML = '';
-                    p.textContent = text;
-                });
 
                 if (!wasExpanded) {
                     btn.classList.add('expanded');
@@ -235,12 +221,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                     row.classList.add('active');
                     const tag = btn.dataset.tag;
                     const font = decodeURIComponent(btn.dataset.font);
-                    const hSize = btn.dataset.size;
-                    const hWeight = btn.dataset.weight;
-                    const hLineHeight = btn.dataset.lineHeight;
-                    const hTextTransform = btn.dataset.textTransform;
-                    const hLetterSpacing = btn.dataset.letterSpacing;
-                    await highlightTypographyElements(tag, font, hSize, hWeight, hLineHeight, hTextTransform, hLetterSpacing);
+                    const size = btn.dataset.size;
+                    const weight = btn.dataset.weight;
+                    const lineHeight = btn.dataset.lineHeight;
+                    const textTransform = btn.dataset.textTransform;
+                    const letterSpacing = btn.dataset.letterSpacing;
+                    await highlightTypographyElements(tag, font, size, weight, lineHeight, textTransform, letterSpacing);
 
                     // Scroll row to top of font-list
                     const listRect = fontList.getBoundingClientRect();
@@ -248,13 +234,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                     fontList.scrollBy({ top: rowRect.top - listRect.top - 14, behavior: 'smooth' });
                     const preview = row.nextElementSibling;
                     if (preview && preview.classList.contains('typo-preview')) {
-                        const tag = btn.dataset.tag;
-                        const font = decodeURIComponent(btn.dataset.font);
-                        const size = btn.dataset.size;
-                        const weight = btn.dataset.weight;
-                        const lineHeight = btn.dataset.lineHeight;
-                        const textTransform = btn.dataset.textTransform;
-                        const letterSpacing = btn.dataset.letterSpacing;
                         const results = await chrome.scripting.executeScript({
                             target: { tabId: currentTab.id },
                             function: getTypographySamples,
@@ -262,26 +241,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                         });
                         const samples = results[0].result || [];
 
-                        // Add jump button to base preview
-                        const baseText = preview.textContent;
-                        preview.innerHTML = '';
-                        preview.classList.add('typo-preview-row');
-                        const baseJumpBtn = document.createElement('button');
-                        baseJumpBtn.className = 'typo-jump-btn';
-                        baseJumpBtn.dataset.tag = tag;
-                        baseJumpBtn.dataset.font = btn.dataset.font;
-                        baseJumpBtn.dataset.size = size;
-                        baseJumpBtn.dataset.weight = weight;
-                        baseJumpBtn.dataset.lineHeight = lineHeight;
-                        baseJumpBtn.dataset.textTransform = textTransform;
-                        baseJumpBtn.dataset.letterSpacing = letterSpacing;
-                        baseJumpBtn.dataset.elementIndex = samples.length > 0 ? samples[0].index : 0;
-                        baseJumpBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="8" r="2" fill="currentColor"/></svg>';
-                        const baseSpan = document.createElement('span');
-                        baseSpan.className = 'typo-preview-text';
-                        baseSpan.textContent = baseText;
-                        preview.appendChild(baseJumpBtn);
-                        preview.appendChild(baseSpan);
+                        // Update base preview jump button index
+                        const baseBtn = preview.querySelector('.typo-jump-btn');
+                        if (baseBtn) baseBtn.dataset.elementIndex = samples.length > 0 ? samples[0].index : 0;
 
                         let insertAfter = preview;
                         samples.slice(1).forEach(sample => {
@@ -308,16 +270,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                             insertAfter.after(el);
                             insertAfter = el;
                         });
-                    }
-                } else {
-                    // Restore base preview to plain text
-                    const preview = row.nextElementSibling;
-                    if (preview && preview.classList.contains('typo-preview')) {
-                        const textSpan = preview.querySelector('.typo-preview-text');
-                        const text = textSpan ? textSpan.textContent : preview.textContent;
-                        preview.classList.remove('typo-preview-row');
-                        preview.innerHTML = '';
-                        preview.textContent = text;
                     }
                 }
             });
