@@ -120,12 +120,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const previewFont = style.font.replace(/"/g, "'");
                     const previewSize = Math.min(parseFloat(style.size), 16);
                     const escapedSample = (style.sample || 'The quick brown fox').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+                    const metricsStr = `${roundPx(style.size)} / ${style.weight} / ${fmtLineHeight(style.lineHeight, style.size)} / ${style.displayName}`;
+                    const dataAttrs = `data-tag="${style.tag}" data-font="${encodeURIComponent(style.font)}" data-size="${style.size}" data-weight="${style.weight}" data-line-height="${style.lineHeight}" data-text-transform="${style.textTransform}" data-letter-spacing="${style.letterSpacing}"`;
                     return `
                     <div class="typo-row-group">
-                    <div class="typo-row" data-tag="${style.tag}" data-font="${encodeURIComponent(style.font)}" data-size="${style.size}" data-weight="${style.weight}" data-line-height="${style.lineHeight}">
+                    <div class="typo-row" ${dataAttrs}>
                         <span class="typo-row-tag">${style.tag}</span>
-                        <span class="typo-metrics">${roundPx(style.size)} / ${style.weight} / ${fmtLineHeight(style.lineHeight, style.size)} / ${style.displayName}</span>
-                        <button class="typo-count" data-tag="${style.tag}" data-font="${encodeURIComponent(style.font)}" data-size="${style.size}" data-weight="${style.weight}" data-line-height="${style.lineHeight}">&times;${style.count}<span class="typo-chevron">&#x203A;</span></button>
+                        <span class="typo-metrics">${metricsStr}</span>
+                        <button class="typo-count" ${dataAttrs}>&times;${style.count}<span class="typo-chevron">&#x203A;</span></button>
                     </div>
                     <div class="typo-preview" style="font-family: ${previewFont}; font-size: ${previewSize}px; font-weight: ${style.weight}; line-height: ${style.lineHeight}; font-style: ${style.fontStyle}; text-transform: ${style.textTransform}; letter-spacing: ${style.letterSpacing}">${escapedSample}</div>
                     </div>`;
@@ -161,6 +163,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     group.querySelectorAll('.typo-count.expanded').forEach(b => b.classList.remove('expanded'));
                     group.querySelectorAll('.typo-row-sticky').forEach(r => r.classList.remove('typo-row-sticky'));
                     group.querySelectorAll('.typo-preview-active').forEach(el => el.classList.remove('typo-preview-active'));
+                    group.querySelectorAll('.typo-copy-actions').forEach(el => el.remove());
                     group.querySelectorAll('.typo-preview-row').forEach(p => {
                         const textSpan = p.querySelector('.typo-preview-text');
                         const text = textSpan ? textSpan.textContent : p.textContent;
@@ -186,7 +189,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const size = row.dataset.size;
                     const weight = row.dataset.weight;
                     const lineHeight = row.dataset.lineHeight;
-                    await highlightTypographyElements(tag, font, size, weight, lineHeight);
+                    const textTransform = row.dataset.textTransform;
+                    const letterSpacing = row.dataset.letterSpacing;
+                    await highlightTypographyElements(tag, font, size, weight, lineHeight, textTransform, letterSpacing);
                 } else {
                     await clearHighlights();
                 }
@@ -212,6 +217,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 group.querySelectorAll('.typo-preview-instance').forEach(el => el.remove());
                 group.querySelectorAll('.typo-count.expanded').forEach(b => b.classList.remove('expanded'));
                 group.querySelectorAll('.typo-preview-active').forEach(el => el.classList.remove('typo-preview-active'));
+                group.querySelectorAll('.typo-copy-actions').forEach(el => el.remove());
                 group.querySelectorAll('.typo-preview-row').forEach(p => {
                     const textSpan = p.querySelector('.typo-preview-text');
                     const text = textSpan ? textSpan.textContent : p.textContent;
@@ -230,10 +236,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                         const size = btn.dataset.size;
                         const weight = btn.dataset.weight;
                         const lineHeight = btn.dataset.lineHeight;
+                        const textTransform = btn.dataset.textTransform;
+                        const letterSpacing = btn.dataset.letterSpacing;
                         const results = await chrome.scripting.executeScript({
                             target: { tabId: currentTab.id },
                             function: getTypographySamples,
-                            args: [tag, font, size, weight, lineHeight]
+                            args: [tag, font, size, weight, lineHeight, textTransform, letterSpacing]
                         });
                         const samples = results[0].result || [];
 
@@ -248,6 +256,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                         baseJumpBtn.dataset.size = size;
                         baseJumpBtn.dataset.weight = weight;
                         baseJumpBtn.dataset.lineHeight = lineHeight;
+                        baseJumpBtn.dataset.textTransform = textTransform;
+                        baseJumpBtn.dataset.letterSpacing = letterSpacing;
                         baseJumpBtn.dataset.elementIndex = samples.length > 0 ? samples[0].index : 0;
                         baseJumpBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="8" r="2" fill="currentColor"/></svg>';
                         const baseSpan = document.createElement('span');
@@ -269,6 +279,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                             jumpBtn.dataset.size = size;
                             jumpBtn.dataset.weight = weight;
                             jumpBtn.dataset.lineHeight = lineHeight;
+                            jumpBtn.dataset.textTransform = textTransform;
+                            jumpBtn.dataset.letterSpacing = letterSpacing;
                             jumpBtn.dataset.elementIndex = sample.index;
                             jumpBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="8" r="2" fill="currentColor"/></svg>';
                             const span = document.createElement('span');
@@ -305,6 +317,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             // Deselect any previously active preview line
             fontList.querySelectorAll('.typo-preview-active').forEach(el => el.classList.remove('typo-preview-active'));
+            fontList.querySelectorAll('.typo-copy-actions').forEach(el => el.remove());
 
             if (wasActive) {
                 // Deselect: just clear the focused highlight on the page
@@ -320,27 +333,97 @@ document.addEventListener('DOMContentLoaded', async () => {
             const size = jumpBtn.dataset.size;
             const weight = jumpBtn.dataset.weight;
             const lineHeight = jumpBtn.dataset.lineHeight;
+            const textTransform = jumpBtn.dataset.textTransform;
+            const letterSpacing = jumpBtn.dataset.letterSpacing;
             const elementIndex = parseInt(jumpBtn.dataset.elementIndex, 10);
 
             // Ensure group highlights are shown first
-            const row = previewLine && previewLine.closest('.typo-group').querySelector(`.typo-row[data-tag="${tag}"][data-size="${size}"][data-weight="${weight}"]`);
+            const row = previewLine && previewLine.closest('.typo-group').querySelector(`.typo-row[data-tag="${tag}"][data-size="${size}"][data-weight="${weight}"][data-text-transform="${textTransform}"][data-letter-spacing="${letterSpacing}"]`);
             if (row && !row.classList.contains('active')) {
                 document.querySelectorAll('.typo-row').forEach(r => r.classList.remove('active'));
                 row.classList.add('active');
-                await highlightTypographyElements(tag, font, size, weight, lineHeight);
+                await highlightTypographyElements(tag, font, size, weight, lineHeight, textTransform, letterSpacing);
             }
 
-            await scrollToElement(tag, font, size, weight, lineHeight, elementIndex);
+            await scrollToElement(tag, font, size, weight, lineHeight, textTransform, letterSpacing, elementIndex);
+
+            // Fetch element styles and show copy pills
+            try {
+                const results = await chrome.scripting.executeScript({
+                    target: { tabId: currentTab.id },
+                    function: getElementStyles,
+                    args: [tag, font, size, weight, lineHeight, textTransform, letterSpacing, elementIndex]
+                });
+                const styles = results[0].result;
+                if (styles && previewLine) {
+                    // Remove any existing copy actions
+                    fontList.querySelectorAll('.typo-copy-actions').forEach(el => el.remove());
+                    const actions = document.createElement('div');
+                    actions.className = 'typo-copy-actions';
+                    const copyIcon = '<svg width="10" height="10" viewBox="0 0 16 16" fill="none" style="margin-right:3px;vertical-align:-1px"><rect x="5" y="1" width="10" height="12" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M3 4H2.5A1.5 1.5 0 001 5.5v9A1.5 1.5 0 002.5 16h7a1.5 1.5 0 001.5-1.5V14" stroke="currentColor" stroke-width="1.5"/></svg>';
+                    actions.innerHTML = `<button class="typo-copy-pill" data-format="css">${copyIcon}CSS</button><button class="typo-copy-pill" data-format="tokens">${copyIcon}Tokens</button>`;
+                    actions._styles = styles;
+                    previewLine.after(actions);
+                }
+            } catch (error) {
+                console.error('Error fetching styles:', error);
+            }
+        });
+
+        // Copy pill click handler (event delegation)
+        fontList.addEventListener('click', async (e) => {
+            const pill = e.target.closest('.typo-copy-pill');
+            if (!pill) return;
+            e.stopPropagation();
+
+            const styles = pill.closest('.typo-copy-actions')._styles;
+            if (!styles) return;
+
+            let text;
+            if (pill.dataset.format === 'css') {
+                const lines = [
+                    `font-family: ${styles.fontFamily};`,
+                    `font-weight: ${styles.fontWeight};`,
+                    `font-size: ${styles.fontSize};`,
+                    `line-height: ${styles.lineHeight};`,
+                    `letter-spacing: ${styles.letterSpacing};`,
+                    `text-transform: ${styles.textTransform};`,
+                    `color: ${styles.color};`
+                ];
+                if (styles.fontStyle !== 'normal') lines.splice(1, 0, `font-style: ${styles.fontStyle};`);
+                text = lines.join('\n');
+            } else {
+                const cleanFont = styles.fontFamily.split(',')[0].replace(/['"]/g, '').trim();
+                const tokens = {
+                    'font-family': { type: 'string', value: cleanFont },
+                    'font-weight': { type: 'dimension', value: styles.fontWeight },
+                    'font-size': { type: 'dimension', value: styles.fontSize },
+                    'line-height': { type: 'dimension', value: styles.lineHeight },
+                    'letter-spacing': { type: 'dimension', value: styles.letterSpacing },
+                    'text-transform': { type: 'string', value: styles.textTransform },
+                    'color': { type: 'string', value: styles.color }
+                };
+                text = JSON.stringify(tokens, null, 2);
+            }
+
+            await navigator.clipboard.writeText(text);
+            const ghost = document.createElement('span');
+            ghost.className = 'typo-copy-ghost';
+            ghost.style.color = getComputedStyle(pill).color;
+            ghost.innerHTML = '<svg width="10" height="10" viewBox="0 0 16 16" fill="none"><rect x="5" y="1" width="10" height="12" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M3 4H2.5A1.5 1.5 0 001 5.5v9A1.5 1.5 0 002.5 16h7a1.5 1.5 0 001.5-1.5V14" stroke="currentColor" stroke-width="1.5"/></svg>';
+            pill.style.position = 'relative';
+            pill.insertBefore(ghost, pill.firstChild);
+            ghost.addEventListener('animationend', () => ghost.remove());
         });
     }
 
-    async function highlightTypographyElements(tag, fontFamily, size, weight, lineHeight) {
+    async function highlightTypographyElements(tag, fontFamily, size, weight, lineHeight, textTransform, letterSpacing) {
         try {
             if (!currentTab) return;
             await chrome.scripting.executeScript({
                 target: { tabId: currentTab.id },
                 function: highlightTypographyMatches,
-                args: [tag, fontFamily, size, weight, lineHeight]
+                args: [tag, fontFamily, size, weight, lineHeight, textTransform, letterSpacing]
             });
         } catch (error) {
             console.error('Error highlighting typography:', error);
@@ -353,7 +436,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             await chrome.scripting.executeScript({
                 target: { tabId: currentTab.id },
                 function: () => {
-                    document.querySelectorAll('.wff-highlight, .wff-highlight-focus').forEach(el => el.remove());
+                    document.querySelectorAll('.wff-highlight, .wff-highlight-focus, .wff-jump-tooltip').forEach(el => el.remove());
                     document.querySelectorAll('.wff-anchored').forEach(el => {
                         el.style.anchorName = '';
                         el.classList.remove('wff-anchored', 'wff-focused');
@@ -365,13 +448,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    async function scrollToElement(tag, fontFamily, size, weight, lineHeight, elementIndex) {
+    async function scrollToElement(tag, fontFamily, size, weight, lineHeight, textTransform, letterSpacing, elementIndex) {
         try {
             if (!currentTab) return;
             await chrome.scripting.executeScript({
                 target: { tabId: currentTab.id },
                 function: scrollToTypographyElement,
-                args: [tag, fontFamily, size, weight, lineHeight, elementIndex]
+                args: [tag, fontFamily, size, weight, lineHeight, textTransform, letterSpacing, elementIndex]
             });
         } catch (error) {
             console.error('Error scrolling to element:', error);
@@ -467,6 +550,8 @@ function enableInspectorMode() {
         const fontWeight = computedStyle.fontWeight || 'normal';
         const fontStyle = computedStyle.fontStyle || 'normal';
         const lineHeight = computedStyle.lineHeight || 'normal';
+        const letterSpacing = computedStyle.letterSpacing || 'normal';
+        const textTransform = computedStyle.textTransform || 'none';
         const color = computedStyle.color || 'black';
         const cleanFontName = fontFamily.split(',')[0].replace(/['"]/g, '').trim();
         const tagName = element.tagName.toLowerCase();
@@ -483,21 +568,29 @@ function enableInspectorMode() {
             z-index: 1000000;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             font-size: 12px;
-            line-height: 1.5;
-            max-width: 260px;
+            line-height: 1;
+            max-width: 280px;
             pointer-events: none;
             color: #3c3c3c;
         `;
 
+        const gridStyle = 'display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; align-items: baseline;';
+        const labelStyle = 'color: #999; font-size: 11px; white-space: nowrap;';
+        const valueStyle = 'color: #333; font-size: 12px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;';
+
+        const rows = `
+            <span style="${labelStyle}">Font</span><span style="${valueStyle}">${cleanFontName}</span>
+            <span style="${labelStyle}">Weight</span><span style="${valueStyle}">${fontWeight}</span>
+            <span style="${labelStyle}">Size</span><span style="${valueStyle}">${fontSize}</span>
+            <span style="${labelStyle}">Line Height</span><span style="${valueStyle}">${lineHeight}</span>
+            <span style="${labelStyle}">Letter Spacing</span><span style="${valueStyle}">${letterSpacing}</span>
+            <span style="${labelStyle}">Text Transform</span><span style="${valueStyle}">${textTransform}</span>
+            <span style="${labelStyle}">Color</span><span style="${valueStyle}"><span style="display: inline-block; width: 10px; height: 10px; background: ${color}; border-radius: 2px; vertical-align: middle; margin-right: 4px; border: 1px solid #ddd;"></span>${color}</span>`;
+
         tooltip.innerHTML = `
-            <div style="font-weight: 600; margin-bottom: 8px; color: #007acc; font-size: 13px;">&lt;${tagName}&gt;</div>
-            <div style="color: #3c3c3c; margin-bottom: 3px;"><strong style="color: #555;">Font:</strong> ${cleanFontName}</div>
-            <div style="color: #3c3c3c; margin-bottom: 3px;"><strong style="color: #555;">Size:</strong> ${fontSize}</div>
-            <div style="color: #3c3c3c; margin-bottom: 3px;"><strong style="color: #555;">Weight:</strong> ${fontWeight}</div>
-            <div style="color: #3c3c3c; margin-bottom: 3px;"><strong style="color: #555;">Style:</strong> ${fontStyle}</div>
-            <div style="color: #3c3c3c; margin-bottom: 3px;"><strong style="color: #555;">Line Height:</strong> ${lineHeight}</div>
-            <div style="color: #3c3c3c; margin-bottom: 0;"><strong style="color: #555;">Color:</strong> <span style="display: inline-block; width: 12px; height: 12px; background: ${color}; border-radius: 2px; vertical-align: middle; margin-right: 4px; border: 1px solid #ddd;"></span>${color}</div>
-            <div style="margin-top: 8px; padding-top: 6px; border-top: 1px solid #f0f0f0; font-size: 10px; color: #aaa; text-align: center;">Click to copy CSS</div>
+            <div style="font-weight: 600; margin-bottom: 10px; color: #007acc; font-size: 13px;">&lt;${tagName}&gt;</div>
+            <div style="${gridStyle}">${rows}</div>
+            <div style="margin-top: 10px; padding-top: 6px; border-top: 1px solid #f0f0f0; font-size: 10px; color: #aaa; text-align: center;">Click to copy CSS</div>
         `;
 
         // Position tooltip
@@ -534,6 +627,9 @@ function enableInspectorMode() {
             `color: ${computedStyle.color};`
         ];
 
+        if (computedStyle.textTransform !== 'none') {
+            css.push(`text-transform: ${computedStyle.textTransform};`);
+        }
         if (computedStyle.letterSpacing !== 'normal') {
             css.push(`letter-spacing: ${computedStyle.letterSpacing};`);
         }
@@ -612,8 +708,8 @@ function detectTypography() {
 
     const SEMANTIC = new Set([...HEADINGS, ...CONTENT, ...INTERACTIVE]);
     const RELEVANT = new Set([...SEMANTIC, 'span', 'div']);
-    const counted = new Set();
-    const classifierMap = new Map(); // classifier -> Map<key, {tag, font, displayName, size, weight, lineHeight, count}>
+    const counted = new Map(); // element -> Set of keys already counted
+    const classifierMap = new Map();
 
     const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
         acceptNode: n => n.textContent.trim().length > 0 ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT
@@ -650,35 +746,35 @@ function detectTypography() {
             el = el.parentElement;
         }
 
-        if (!target || counted.has(target)) continue;
-        counted.add(target);
+        if (!target) continue;
 
         const tag = target.tagName.toLowerCase();
-        // Skip spans — they're inline wrappers, not distinct typographic decisions
         if (tag === 'span') continue;
 
+        // Capture ALL metrics from the text's direct parent (actual rendered styles)
         const classifier = CLASSIFY(tag);
-        const targetStyle = window.getComputedStyle(target);
-        const size = targetStyle.fontSize;
-        const weight = targetStyle.fontWeight;
-        const lineHeight = targetStyle.lineHeight;
-        const fontStyle = targetStyle.fontStyle;
-        const textTransform = targetStyle.textTransform;
-        const letterSpacing = targetStyle.letterSpacing;
+        const size = computedStyle.fontSize;
+        const weight = computedStyle.fontWeight;
+        const lineHeight = computedStyle.lineHeight;
+        const fontStyle = computedStyle.fontStyle;
+        const textTransform = computedStyle.textTransform;
+        const letterSpacing = computedStyle.letterSpacing;
         const displayName = fontFamily.split(',')[0].replace(/['"]/g, '').trim();
 
-        const key = `${tag}|${fontFamily}|${size}|${weight}|${lineHeight}`;
+        const key = `${tag}|${fontFamily}|${size}|${weight}|${lineHeight}|${textTransform}|${letterSpacing}`;
+
+        // Dedup: same target element counted once per unique style key
+        if (!counted.has(target)) counted.set(target, new Set());
+        const targetKeys = counted.get(target);
+        if (targetKeys.has(key)) continue;
+        targetKeys.add(key);
 
         if (!classifierMap.has(classifier)) {
             classifierMap.set(classifier, new Map());
         }
         const styleMap = classifierMap.get(classifier);
         if (!styleMap.has(key)) {
-            const tw = document.createTreeWalker(target, NodeFilter.SHOW_TEXT, {
-                acceptNode: n => n.textContent.trim().length > 0 ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT
-            });
-            const firstText = tw.nextNode();
-            const sample = firstText ? firstText.textContent.trim().slice(0, 60) : '';
+            const sample = walker.currentNode.textContent.trim().slice(0, 60);
             styleMap.set(key, { tag, font: fontFamily, displayName, size, weight, lineHeight, fontStyle, textTransform, letterSpacing, count: 0, sample });
         }
         styleMap.get(key).count++;
@@ -700,27 +796,29 @@ function detectTypography() {
 }
 
 // Content script function: Get text samples from all elements matching a typography style
-function getTypographySamples(tag, fontFamily, size, weight, lineHeight) {
+function getTypographySamples(tag, fontFamily, size, weight, lineHeight, textTransform, letterSpacing) {
     const elements = document.querySelectorAll(tag);
     const samples = [];
     let index = 0;
     elements.forEach(element => {
-        const cs = window.getComputedStyle(element);
-        if (cs.fontFamily !== fontFamily) return;
-        if (cs.fontSize !== size) return;
-        if (cs.fontWeight !== weight) return;
-        if (cs.lineHeight !== lineHeight) return;
         if (!element.textContent.trim()) return;
         const rect = element.getBoundingClientRect();
         if (rect.width <= 0 || rect.height <= 0) return;
         const tw = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, {
             acceptNode: n => n.textContent.trim().length > 0 ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT
         });
-        const firstText = tw.nextNode();
-        if (firstText) {
-            samples.push({ text: firstText.textContent.trim().slice(0, 60), index });
+        let matchedText = null;
+        while (tw.nextNode()) {
+            const cs = window.getComputedStyle(tw.currentNode.parentElement);
+            if (cs.fontFamily === fontFamily && cs.fontSize === size && cs.fontWeight === weight && cs.lineHeight === lineHeight && cs.textTransform === textTransform && cs.letterSpacing === letterSpacing) {
+                matchedText = tw.currentNode.textContent.trim().slice(0, 60);
+                break;
+            }
         }
-        index++;
+        if (matchedText) {
+            samples.push({ text: matchedText, index });
+            index++;
+        }
     });
     return samples;
 }
@@ -754,8 +852,8 @@ function extractFontFaces() {
 }
 
 // Content script function: Highlight elements matching a specific typography combination
-function highlightTypographyMatches(tag, fontFamily, size, weight, lineHeight) {
-    document.querySelectorAll('.wff-highlight, .wff-highlight-focus').forEach(el => el.remove());
+function highlightTypographyMatches(tag, fontFamily, size, weight, lineHeight, textTransform, letterSpacing) {
+    document.querySelectorAll('.wff-highlight, .wff-highlight-focus, .wff-jump-tooltip').forEach(el => el.remove());
     document.querySelectorAll('.wff-anchored').forEach(el => {
         el.style.anchorName = '';
         el.classList.remove('wff-anchored', 'wff-focused');
@@ -766,15 +864,23 @@ function highlightTypographyMatches(tag, fontFamily, size, weight, lineHeight) {
     let i = 0;
 
     elements.forEach(element => {
-        const cs = window.getComputedStyle(element);
-        if (cs.fontFamily !== fontFamily) return;
-        if (cs.fontSize !== size) return;
-        if (cs.fontWeight !== weight) return;
-        if (cs.lineHeight !== lineHeight) return;
         if (!element.textContent.trim()) return;
-
         const rect = element.getBoundingClientRect();
         if (rect.width <= 0 || rect.height <= 0) return;
+
+        // Walk text nodes to check if any match the target styles
+        const tw = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, {
+            acceptNode: n => n.textContent.trim().length > 0 ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT
+        });
+        let matched = false;
+        while (tw.nextNode()) {
+            const cs = window.getComputedStyle(tw.currentNode.parentElement);
+            if (cs.fontFamily === fontFamily && cs.fontSize === size && cs.fontWeight === weight && cs.lineHeight === lineHeight && cs.textTransform === textTransform && cs.letterSpacing === letterSpacing) {
+                matched = true;
+                break;
+            }
+        }
+        if (!matched) return;
 
         if (!firstElement) firstElement = element;
 
@@ -807,9 +913,9 @@ function highlightTypographyMatches(tag, fontFamily, size, weight, lineHeight) {
 }
 
 // Content script function: Scroll to and highlight a specific element with a distinct focus style
-function scrollToTypographyElement(tag, fontFamily, size, weight, lineHeight, elementIndex) {
-    // Remove only the focused highlight, keep all group highlights
-    document.querySelectorAll('.wff-highlight-focus').forEach(el => el.remove());
+function scrollToTypographyElement(tag, fontFamily, size, weight, lineHeight, textTransform, letterSpacing, elementIndex) {
+    // Remove previous focus highlight and tooltip
+    document.querySelectorAll('.wff-highlight-focus, .wff-jump-tooltip').forEach(el => el.remove());
     document.querySelectorAll('.wff-focused').forEach(el => el.classList.remove('wff-focused'));
 
     const elements = document.querySelectorAll(tag);
@@ -817,14 +923,22 @@ function scrollToTypographyElement(tag, fontFamily, size, weight, lineHeight, el
     let target = null;
 
     elements.forEach(element => {
-        const cs = window.getComputedStyle(element);
-        if (cs.fontFamily !== fontFamily) return;
-        if (cs.fontSize !== size) return;
-        if (cs.fontWeight !== weight) return;
-        if (cs.lineHeight !== lineHeight) return;
         if (!element.textContent.trim()) return;
         const rect = element.getBoundingClientRect();
         if (rect.width <= 0 || rect.height <= 0) return;
+
+        const tw = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, {
+            acceptNode: n => n.textContent.trim().length > 0 ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT
+        });
+        let matched = false;
+        while (tw.nextNode()) {
+            const cs = window.getComputedStyle(tw.currentNode.parentElement);
+            if (cs.fontFamily === fontFamily && cs.fontSize === size && cs.fontWeight === weight && cs.lineHeight === lineHeight && cs.textTransform === textTransform && cs.letterSpacing === letterSpacing) {
+                matched = true;
+                break;
+            }
+        }
+        if (!matched) return;
 
         if (i === elementIndex) target = element;
         i++;
@@ -860,10 +974,103 @@ function scrollToTypographyElement(tag, fontFamily, size, weight, lineHeight, el
     `;
     document.body.appendChild(focusEl);
     target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+    // Show inspector tooltip on the target element
+    const cs = window.getComputedStyle(target);
+    const cleanFont = (cs.fontFamily || '').split(',')[0].replace(/['"]/g, '').trim();
+    const tagName = target.tagName.toLowerCase();
+    const color = cs.color || 'black';
+
+    const labelStyle = 'color: #999; font-size: 11px; white-space: nowrap;';
+    const valueStyle = 'color: #333; font-size: 12px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;';
+
+    const tooltip = document.createElement('div');
+    tooltip.className = 'wff-jump-tooltip';
+    tooltip.style.cssText = `
+        position: fixed;
+        background: #ffffff;
+        border: none;
+        border-radius: 12px;
+        padding: 14px 16px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.08);
+        z-index: 1000001;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        font-size: 12px;
+        line-height: 1;
+        max-width: 280px;
+        pointer-events: none;
+        color: #3c3c3c;
+    `;
+    tooltip.innerHTML = `
+        <div style="font-weight: 600; margin-bottom: 10px; color: #007acc; font-size: 13px;">&lt;${tagName}&gt;</div>
+        <div style="display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; align-items: baseline;">
+            <span style="${labelStyle}">Font</span><span style="${valueStyle}">${cleanFont}</span>
+            <span style="${labelStyle}">Weight</span><span style="${valueStyle}">${cs.fontWeight}</span>
+            <span style="${labelStyle}">Size</span><span style="${valueStyle}">${cs.fontSize}</span>
+            <span style="${labelStyle}">Line Height</span><span style="${valueStyle}">${cs.lineHeight}</span>
+            <span style="${labelStyle}">Letter Spacing</span><span style="${valueStyle}">${cs.letterSpacing}</span>
+            <span style="${labelStyle}">Text Transform</span><span style="${valueStyle}">${cs.textTransform}</span>
+            <span style="${labelStyle}">Color</span><span style="${valueStyle}"><span style="display: inline-block; width: 10px; height: 10px; background: ${color}; border-radius: 2px; vertical-align: middle; margin-right: 4px; border: 1px solid #ddd;"></span>${color}</span>
+        </div>
+    `;
+
+    // Position tooltip below or above the element
+    const rect = target.getBoundingClientRect();
+    let top = rect.bottom + 8;
+    let left = rect.left;
+    if (left + 280 > window.innerWidth) left = window.innerWidth - 290;
+    if (left < 10) left = 10;
+    if (top + 180 > window.innerHeight) top = rect.top - 188;
+    tooltip.style.top = top + 'px';
+    tooltip.style.left = left + 'px';
+
+    document.body.appendChild(tooltip);
 }
 
-// Content script function: Remove only the focused highlight
+// Content script function: Remove only the focused highlight and tooltip
 function clearFocusedHighlight() {
-    document.querySelectorAll('.wff-highlight-focus').forEach(el => el.remove());
+    document.querySelectorAll('.wff-highlight-focus, .wff-jump-tooltip').forEach(el => el.remove());
     document.querySelectorAll('.wff-focused').forEach(el => el.classList.remove('wff-focused'));
+}
+
+// Content script function: Get computed style properties of a matched element
+function getElementStyles(tag, fontFamily, size, weight, lineHeight, textTransform, letterSpacing, elementIndex) {
+    const elements = document.querySelectorAll(tag);
+    let i = 0;
+    let target = null;
+
+    elements.forEach(element => {
+        if (!element.textContent.trim()) return;
+        const rect = element.getBoundingClientRect();
+        if (rect.width <= 0 || rect.height <= 0) return;
+
+        const tw = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, {
+            acceptNode: n => n.textContent.trim().length > 0 ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT
+        });
+        let matched = false;
+        while (tw.nextNode()) {
+            const cs = window.getComputedStyle(tw.currentNode.parentElement);
+            if (cs.fontFamily === fontFamily && cs.fontSize === size && cs.fontWeight === weight && cs.lineHeight === lineHeight && cs.textTransform === textTransform && cs.letterSpacing === letterSpacing) {
+                matched = true;
+                break;
+            }
+        }
+        if (!matched) return;
+        if (i === elementIndex) target = element;
+        i++;
+    });
+
+    if (!target) return null;
+
+    const cs = window.getComputedStyle(target);
+    return {
+        fontFamily: cs.fontFamily,
+        fontWeight: cs.fontWeight,
+        fontSize: cs.fontSize,
+        fontStyle: cs.fontStyle,
+        lineHeight: cs.lineHeight,
+        letterSpacing: cs.letterSpacing,
+        textTransform: cs.textTransform,
+        color: cs.color
+    };
 }
