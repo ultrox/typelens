@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let cachedTypographyGroups = null;
     let lineHeightMode = 'ratio';
     let typoSortMode = 'size';
+    let displayAbort = null;
 
     // Background detects popup close via port disconnect and runs cleanup
     chrome.runtime.connect({ name: 'popup' });
@@ -146,6 +147,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         fontList.querySelectorAll('.typo-group').forEach(g => {
             g.classList.remove('copy-mode');
             delete g.dataset.copyFormat;
+            g.querySelectorAll('.typo-group-copy-pill.active').forEach(p => p.classList.remove('active'));
         });
         fontList.querySelectorAll('.typo-row-check input').forEach(cb => { cb.checked = true; });
         const copyBtn = fontList.querySelector('.typo-all-copy-btn');
@@ -153,6 +155,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function displayTypography(typoGroups) {
+        // Abort previous event listeners to prevent stacking
+        if (displayAbort) displayAbort.abort();
+        displayAbort = new AbortController();
+        const signal = displayAbort.signal;
+
         if (!typoGroups || typoGroups.length === 0) {
             fontList.innerHTML = '<div class="no-fonts">No typography detected on this page</div>';
             fontCountText.textContent = '0 element types found';
@@ -239,6 +246,26 @@ document.addEventListener('DOMContentLoaded', async () => {
             </div>
         `).join('');
 
+        // Restore copy mode state after re-render
+        if (fontList.classList.contains('copy-mode-all')) {
+            const format = fontList.dataset.copyFormat;
+            fontList.querySelectorAll('.typo-group').forEach(g => {
+                g.classList.add('copy-mode');
+                g.dataset.copyFormat = format;
+                const gPill = g.querySelector(`.typo-group-copy-pill[data-format="${format}"]`);
+                if (gPill) gPill.classList.add('active');
+            });
+            const allPill = fontList.querySelector(`.typo-all-copy-pill[data-format="${format}"]`);
+            if (allPill) allPill.classList.add('active');
+            const count = fontList.querySelectorAll('.typo-row-check input:checked').length;
+            const btn = document.createElement('button');
+            btn.className = 'typo-all-copy-btn';
+            btn.textContent = `COPY (${count})`;
+            fontList.appendChild(btn);
+        }
+
+        const listen = (evt, fn) => fontList.addEventListener(evt, fn, { signal });
+
         // Sort mode toggle
         document.querySelectorAll('.typo-toggle-btn[data-group="sort"]').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -273,13 +300,39 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         // Group copy pill click handler (event delegation)
-        fontList.addEventListener('click', (e) => {
+        listen('click', (e) => {
             const pill = e.target.closest('.typo-group-copy-pill');
             if (!pill) return;
             e.stopPropagation();
-            if (fontList.classList.contains('copy-mode-all')) return;
 
             const group = pill.closest('.typo-group');
+
+            // During all-copy mode, group pills toggle their group on/off
+            if (fontList.classList.contains('copy-mode-all')) {
+                const format = fontList.dataset.copyFormat;
+                if (pill.dataset.format !== format) return;
+
+                if (group.classList.contains('copy-mode')) {
+                    // Toggle group OFF — uncheck all rows, deactivate pill
+                    group.classList.remove('copy-mode');
+                    pill.classList.remove('active');
+                    group.querySelectorAll('.typo-row-check input').forEach(cb => { cb.checked = false; });
+                } else {
+                    // Toggle group ON — check all rows, activate pill
+                    group.classList.add('copy-mode');
+                    pill.classList.add('active');
+                    group.querySelectorAll('.typo-row-check input').forEach(cb => { cb.checked = true; });
+                }
+                // Update all-copy button count
+                const count = fontList.querySelectorAll('.typo-row-check input:checked').length;
+                const allBtn = fontList.querySelector('.typo-all-copy-btn');
+                if (allBtn) {
+                    allBtn.textContent = `COPY (${count})`;
+                    allBtn.disabled = count === 0;
+                }
+                return;
+            }
+
             const wasActive = pill.classList.contains('active');
 
             // If clicking a different format pill while already in copy mode, switch format
@@ -313,7 +366,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         // Checkbox change handler — update copy button count (group or all)
-        fontList.addEventListener('change', (e) => {
+        listen('change', (e) => {
             if (!e.target.closest('.typo-row-check')) return;
 
             // All-groups mode
@@ -339,7 +392,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         // Group copy button click handler
-        fontList.addEventListener('click', async (e) => {
+        listen('click', async (e) => {
             const btn = e.target.closest('.typo-group-copy-btn');
             if (!btn) return;
             e.stopPropagation();
@@ -378,7 +431,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         // All-groups copy pill click handler
-        fontList.addEventListener('click', (e) => {
+        listen('click', (e) => {
             const pill = e.target.closest('.typo-all-copy-pill');
             if (!pill) return;
             e.stopPropagation();
@@ -391,7 +444,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 activePill.classList.remove('active');
                 pill.classList.add('active');
                 fontList.dataset.copyFormat = pill.dataset.format;
-                fontList.querySelectorAll('.typo-group').forEach(g => { g.dataset.copyFormat = pill.dataset.format; });
+                fontList.querySelectorAll('.typo-group').forEach(g => {
+                    g.dataset.copyFormat = pill.dataset.format;
+                    g.querySelectorAll('.typo-group-copy-pill.active').forEach(p => p.classList.remove('active'));
+                    if (g.classList.contains('copy-mode')) {
+                        const gPill = g.querySelector(`.typo-group-copy-pill[data-format="${pill.dataset.format}"]`);
+                        if (gPill) gPill.classList.add('active');
+                    }
+                });
                 return;
             }
 
@@ -414,6 +474,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 fontList.querySelectorAll('.typo-group').forEach(g => {
                     g.classList.add('copy-mode');
                     g.dataset.copyFormat = pill.dataset.format;
+                    const gPill = g.querySelector(`.typo-group-copy-pill[data-format="${pill.dataset.format}"]`);
+                    if (gPill) gPill.classList.add('active');
                 });
                 const count = fontList.querySelectorAll('.typo-row-check input:checked').length;
                 const btn = document.createElement('button');
@@ -424,7 +486,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         // All-groups copy button click handler
-        fontList.addEventListener('click', async (e) => {
+        listen('click', async (e) => {
             const btn = e.target.closest('.typo-all-copy-btn');
             if (!btn) return;
             e.stopPropagation();
@@ -564,7 +626,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         // Jump button click handler (event delegation)
-        fontList.addEventListener('click', async (e) => {
+        listen('click', async (e) => {
             const jumpBtn = e.target.closest('.typo-jump-btn');
             if (!jumpBtn) return;
             e.stopPropagation();
@@ -628,7 +690,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         // Copy pill click handler (event delegation)
-        fontList.addEventListener('click', async (e) => {
+        listen('click', async (e) => {
             const pill = e.target.closest('.typo-copy-pill');
             if (!pill) return;
             e.stopPropagation();
