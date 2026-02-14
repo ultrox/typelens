@@ -111,7 +111,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         const groupKeys = Object.keys(groups);
         groupKeys.forEach((gk, gi) => {
             lines.push(`  ${j(gk)}: {`);
-            const entries = Object.entries(groups[gk]);
+            const entries = Object.entries(groups[gk]).sort(([a], [b]) => {
+                const na = parseFloat(a), nb = parseFloat(b);
+                if (!isNaN(na) && !isNaN(nb)) return na - nb;
+                return a.localeCompare(b);
+            });
             entries.forEach(([k, v], i) => {
                 const comma = i < entries.length - 1 ? ',' : '';
                 lines.push(`    ${j(k)}: { "type": ${j(v.type)}, "value": ${j(v.value)} }${comma}`);
