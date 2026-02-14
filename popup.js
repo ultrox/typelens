@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let cachedFontGroups = null;
     let cachedTypographyGroups = null;
     let lineHeightMode = 'ratio';
+    let typoSortMode = 'size';
 
     // Background detects popup close via port disconnect and runs cleanup
     chrome.runtime.connect({ name: 'popup' });
@@ -161,15 +162,31 @@ document.addEventListener('DOMContentLoaded', async () => {
             return ratio % 1 === 0 ? `${ratio}` : `${+ratio.toFixed(2)}`;
         };
 
+        const sorted = typoGroups.map(group => ({
+            ...group,
+            styles: [...group.styles].sort((a, b) =>
+                typoSortMode === 'size' ? parseFloat(b.size) - parseFloat(a.size) : b.count - a.count
+            )
+        }));
+
         fontList.innerHTML = `
-            <div class="typo-options">
-                <span class="typo-options-label">Line height</span>
-                <div class="typo-toggle">
-                    <button class="typo-toggle-btn ${lineHeightMode === 'ratio' ? 'active' : ''}" data-mode="ratio">Ratio</button>
-                    <button class="typo-toggle-btn ${lineHeightMode === 'original' ? 'active' : ''}" data-mode="original">px</button>
+            <div class="typo-toolbar">
+                <div class="typo-options">
+                    <span class="typo-options-label">Sort</span>
+                    <div class="typo-toggle">
+                        <button class="typo-toggle-btn ${typoSortMode === 'size' ? 'active' : ''}" data-group="sort" data-mode="size">Size</button>
+                        <button class="typo-toggle-btn ${typoSortMode === 'frequency' ? 'active' : ''}" data-group="sort" data-mode="frequency">Count</button>
+                    </div>
+                </div>
+                <div class="typo-options">
+                    <span class="typo-options-label">Line height</span>
+                    <div class="typo-toggle">
+                        <button class="typo-toggle-btn ${lineHeightMode === 'ratio' ? 'active' : ''}" data-group="lh" data-mode="ratio">Ratio</button>
+                        <button class="typo-toggle-btn ${lineHeightMode === 'original' ? 'active' : ''}" data-group="lh" data-mode="original">px</button>
+                    </div>
                 </div>
             </div>
-        ` + typoGroups.map(group => `
+        ` + sorted.map(group => `
             <div class="typo-group">
                 <div class="typo-classifier">${group.classifier}</div>
                 ${group.styles.map(style => `
@@ -182,8 +199,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             </div>
         `).join('');
 
+        // Sort mode toggle
+        document.querySelectorAll('.typo-toggle-btn[data-group="sort"]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                typoSortMode = btn.dataset.mode;
+                displayTypography(typoGroups);
+            });
+        });
+
         // Line height mode toggle
-        document.querySelectorAll('.typo-toggle-btn').forEach(btn => {
+        document.querySelectorAll('.typo-toggle-btn[data-group="lh"]').forEach(btn => {
             btn.addEventListener('click', () => {
                 lineHeightMode = btn.dataset.mode;
                 displayTypography(typoGroups);

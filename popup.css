@@ -201,12 +201,16 @@ body {
     text-align: center;
 }
 
+.typo-toolbar {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
 .typo-options {
     display: flex;
     flex-direction: column;
-    align-items: flex-end;
     gap: 4px;
-    margin-bottom: 10px;
 }
 
 .typo-options-label {
