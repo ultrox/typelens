@@ -12,7 +12,7 @@ body {
 }
 
 .main-container {
-    width: 340px;
+    width: 380px;
     max-height: 520px;
     overflow: hidden;
     background: linear-gradient(180deg, #ffffff 0%, #f8f9fa 100%);
@@ -251,7 +251,7 @@ body {
 
 .typo-row-tag {
     flex-shrink: 0;
-    width: 32px;
+    width: 38px;
     font-weight: 600;
     color: #007acc;
     font-size: 11px;
@@ -262,6 +262,7 @@ body {
 }
 
 .typo-metrics {
+    flex: 1;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
