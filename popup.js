@@ -121,12 +121,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const previewSize = Math.min(parseFloat(style.size), 16);
                     const escapedSample = (style.sample || 'The quick brown fox').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
                     return `
+                    <div class="typo-row-group">
                     <div class="typo-row" data-tag="${style.tag}" data-font="${encodeURIComponent(style.font)}" data-size="${style.size}" data-weight="${style.weight}" data-line-height="${style.lineHeight}">
                         <span class="typo-row-tag">${style.tag}</span>
                         <span class="typo-metrics">${roundPx(style.size)} / ${style.weight} / ${fmtLineHeight(style.lineHeight, style.size)} / ${style.displayName}</span>
                         <button class="typo-count" data-tag="${style.tag}" data-font="${encodeURIComponent(style.font)}" data-size="${style.size}" data-weight="${style.weight}" data-line-height="${style.lineHeight}">&times;${style.count}<span class="typo-chevron">&#x203A;</span></button>
                     </div>
-                    <div class="typo-preview" style="font-family: ${previewFont}; font-size: ${previewSize}px; font-weight: ${style.weight}; line-height: ${style.lineHeight}; font-style: ${style.fontStyle}; text-transform: ${style.textTransform}; letter-spacing: ${style.letterSpacing}">${escapedSample}</div>`;
+                    <div class="typo-preview" style="font-family: ${previewFont}; font-size: ${previewSize}px; font-weight: ${style.weight}; line-height: ${style.lineHeight}; font-style: ${style.fontStyle}; text-transform: ${style.textTransform}; letter-spacing: ${style.letterSpacing}">${escapedSample}</div>
+                    </div>`;
                 }).join('')}
             </div>
         `).join('');
@@ -157,6 +159,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (!group.classList.contains('show-preview')) {
                     group.querySelectorAll('.typo-preview-instance').forEach(el => el.remove());
                     group.querySelectorAll('.typo-count.expanded').forEach(b => b.classList.remove('expanded'));
+                    group.querySelectorAll('.typo-row-sticky').forEach(r => r.classList.remove('typo-row-sticky'));
                     group.querySelectorAll('.typo-preview-active').forEach(el => el.classList.remove('typo-preview-active'));
                     group.querySelectorAll('.typo-preview-row').forEach(p => {
                         const textSpan = p.querySelector('.typo-preview-text');
@@ -174,6 +177,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             row.addEventListener('click', async () => {
                 const wasActive = row.classList.contains('active');
                 document.querySelectorAll('.typo-row').forEach(r => r.classList.remove('active'));
+                document.querySelectorAll('.typo-row-sticky').forEach(r => r.classList.remove('typo-row-sticky'));
 
                 if (!wasActive) {
                     row.classList.add('active');
@@ -203,7 +207,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
 
                 const wasExpanded = btn.classList.contains('expanded');
-                // Collapse any previously expanded in this group
+                // Collapse any previously expanded (globally for sticky, within group for the rest)
+                fontList.querySelectorAll('.typo-row-sticky').forEach(r => r.classList.remove('typo-row-sticky'));
                 group.querySelectorAll('.typo-preview-instance').forEach(el => el.remove());
                 group.querySelectorAll('.typo-count.expanded').forEach(b => b.classList.remove('expanded'));
                 group.querySelectorAll('.typo-preview-active').forEach(el => el.classList.remove('typo-preview-active'));
@@ -217,6 +222,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 if (!wasExpanded) {
                     btn.classList.add('expanded');
+                    row.classList.add('typo-row-sticky');
                     const preview = row.nextElementSibling;
                     if (preview && preview.classList.contains('typo-preview')) {
                         const tag = btn.dataset.tag;
